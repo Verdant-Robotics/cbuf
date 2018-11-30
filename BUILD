@@ -4,6 +4,8 @@ cc_binary(
         "src/vrm.cpp",
         "src/Lexer.cpp",
         "src/Lexer.h",
+        "src/Parser.cpp",
+        "src/Parser.h",
         "src/Array.h",
         "src/mytypes.h",
         "src/FileData.h",
