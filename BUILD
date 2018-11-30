@@ -1,0 +1,21 @@
+cc_binary(
+    name="vrm",
+    srcs=[
+        "src/vrm.cpp",
+        "src/Lexer.cpp",
+        "src/Lexer.h",
+        "src/Array.h",
+        "src/mytypes.h",
+        "src/FileData.h",
+        "src/FileData.cpp",
+        "src/PoolAllocator.h",
+        "src/PoolAllocator.cpp",
+        "src/TextType.h",
+        "src/TextType.cpp",
+        "src/Token.h",
+        "src/Token.cpp",
+        "src/TokenType.h",
+        "src/SrcLocation.h",
+        "src/ast.h",
+    ],
+)

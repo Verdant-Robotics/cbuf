@@ -1,0 +1,48 @@
+
+// This is a single line comment
+
+/*
+    You can have multi-line comments too
+    /*
+        Oh, and also nested comment. Do not worry.
+    */
+*/
+
+/*
+  Requirements:
+    * In memory format same as disk format (pointer to mmap should be the struct for POD)
+    * Support backwards compatibility to prevent log rot
+
+*/
+
+// Use namespaces for encapsulation, like in C++. 
+// Close the namespace at the end
+namespace messages
+{
+
+    // This is a POD, a simple structure
+    // Prefer POD, they are much faster for serdes
+    struct image 
+    {
+        u32     rows;
+        uint32_t  cols;
+        s32   format; // opengl format
+        s32   type;   // opengl type
+        double  timestamp;
+        u8   pixels[1024]; // raw data
+    }
+
+    struct complex_thing
+    {
+        s32  one_val;
+        // Specify an array of unknown size by omitting the size
+        // This is a std::vector in plain code
+        s32  dynamic_array[];
+
+        // Strings are dynamic, use a char[32] or fixed size to be POD
+        string name;
+
+        // it is possible to nest structures as needed, even in arrays
+        image  img;
+    }
+}
