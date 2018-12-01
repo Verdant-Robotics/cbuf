@@ -42,7 +42,10 @@ struct ast_struct
     TextType name = nullptr ;
     Array<ast_element *> elements;    
     struct ast_namespace* space = nullptr;
+    u64 hash_value = 0;
     bool simple = false;
+    bool simple_computed = false;
+    bool hash_computed = false;
 };
 
 struct ast_namespace

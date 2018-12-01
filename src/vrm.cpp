@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "Parser.h"
+#include "SymbolTable.h"
+#include "AstPrinter.h"
 
 void print_ast(ast_global *top);
 
@@ -21,6 +23,40 @@ void checkParsing(const char *filename)
     }
 }
 
+bool compute_simple(ast_struct *st, SymbolTable *symtable)
+{
+    if (st->simple_computed) return st->simple;
+    st->simple = true;
+    for (auto *elem: st->elements) {
+        if (elem->type == TYPE_STRING) {
+            st->simple = false;
+            st->simple_computed = true;
+            return false;
+        }
+        if (elem->type == TYPE_CUSTOM) {
+            auto *inner_st = symtable->find_symbol(elem->custom_name);
+            if (inner_st == nullptr) {
+                fprintf(stderr, "Struct %s, element %s was referencing type %s and could not be found\n",
+                    st->name, elem->name, elem->custom_name);
+                exit(-1);
+            }
+            bool elem_simple = compute_simple(inner_st, symtable);
+            if (!elem_simple) {
+                st->simple = false;
+                st->simple_computed = true;
+                return false;
+            }
+        }
+    }
+    st->simple_computed = true;
+    return true;
+}
+
+bool compute_hash(ast_struct *st, SymbolTable *symtable) 
+{
+    return false;
+}
+
 int main(int argc, char **argv)
 {
     Parser parser;
@@ -37,7 +73,17 @@ int main(int argc, char **argv)
         printf("Error during parsing:\n%s\n", parser.getErrorString());
         return -1;
     }
-    print_ast(top_ast);
+
+    AstPrinter printer;
+    auto *str = printer.print_ast(top_ast);
+    printf("%s", str);
+//     print_ast(top_ast);
+
+    SymbolTable symtable;
+    bool bret = symtable.initialize(top_ast);
+    if (!bret) return -1;
+
+
     return 0;
 }
 
@@ -57,49 +103,57 @@ static const char * ElementTypeToStr[] = {
     "bool"
 };
 
-void print_elem(ast_element *elem)
+void print_elem(u32 ident, ast_element *elem)
 {
-    printf("      "); // indentation
+    printf("%*s", ident, " "); // indentation
+    ast_array_definition *ar = elem->array_suffix;
+    bool close_array = false;
+
+    if (ar && ar->size == 0 && elem->is_dynamic_array) {
+        printf("std::vector< ");
+        close_array = true;
+    }
     if (elem->custom_name) {
         printf("%s ", elem->custom_name);
     } else {
         printf("%s ", ElementTypeToStr[elem->type]);
     }
+    if (close_array) {
+        printf("> ");
+    }
     printf("%s", elem->name);
-    ast_array_definition *ar = elem->array_suffix;
     while(ar != nullptr) {
-        if (ar->size == 0) printf("[]");
-        else printf("[%ld]", ar->size);
+        if (ar->size != 0) printf("[%ld]", ar->size);
         ar = ar->next;
     }
     printf(";\n");
 }
 
-void print_struct(ast_struct *st)
+void print_struct(u32 ident, ast_struct *st)
 {
-    printf("    struct %s {\n", st->name);
+    printf("%*sstruct %s {\n", ident, " ", st->name);
     for(auto *elem: st->elements) {
-        print_elem(elem);
+        print_elem(ident + 4, elem);
     }
-    printf("}\n\n");
+    printf("%*s}\n\n", ident, " ");
 }
 
-void print_namespace(ast_namespace *sp)
+void print_namespace(u32 ident, ast_namespace *sp)
 {
-    printf("  namespace %s {\n", sp->name);
+    printf("%.*snamespace %s {\n",ident, " ", sp->name);
     for(auto *st: sp->structs) {
-        print_struct(st);
+        print_struct(ident+4,st);
     }
-    printf("}\n\n");
+    printf("%*s}\n\n", ident, " ");
 }
 
 void print_ast(ast_global *top)
 {
     for(auto *sp: top->spaces) {
-        print_namespace(sp);
+        print_namespace(4, sp);
     }
     printf("\nGlobal namespace:\n");
     for(auto *st: top->global_space.structs) {
-        print_struct(st);
+        print_struct(4, st);
     }
 }
