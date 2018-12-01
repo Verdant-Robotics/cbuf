@@ -10,6 +10,8 @@ cc_binary(
         "src/SymbolTable.h",
         "src/AstPrinter.cpp",
         "src/AstPrinter.h",
+        "src/CPrinter.cpp",
+        "src/CPrinter.h",
         "src/StringBuffer.cpp",
         "src/StringBuffer.h",
         "src/Array.h",

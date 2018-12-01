@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <functional>
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "AstPrinter.h"
-
-void print_ast(ast_global *top);
+#include "CPrinter.h"
 
 void checkParsing(const char *filename)
 {
@@ -20,6 +20,20 @@ void checkParsing(const char *filename)
         lex.getNextToken(tok);
         tok.print();
 //        printf("%s\n", TokenTypeToStr(tok.type));
+    }
+}
+
+template< typename T >
+void loop_all_structs(ast_global *ast, SymbolTable *symtable, T func)
+{
+    for(auto *sp: ast->spaces) {
+        for(auto *st: sp->structs) {
+            func(st, symtable);
+        }
+    }
+
+    for(auto *st: ast->global_space.structs) {
+        func(st, symtable);
     }
 }
 
@@ -52,9 +66,37 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
     return true;
 }
 
+unsigned long hash(const unsigned char *str)
+{
+    unsigned long hash = 5381;
+    int c;
+
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    return hash;
+}
+
 bool compute_hash(ast_struct *st, SymbolTable *symtable) 
 {
-    return false;
+    StringBuffer buf;
+    AstPrinter printer;
+    if (st->hash_computed) return true;
+
+    for(auto *elem: st->elements) {
+        if (elem->type == TYPE_CUSTOM) {
+            auto *inner_st = symtable->find_symbol(elem->custom_name);
+            bool bret = compute_hash(inner_st, symtable);
+            if (!bret) return false;
+            buf.print("%lX ", inner_st->hash_value);
+        } else {
+            printer.print_ast(&buf, elem);
+        }
+    }
+
+    st->hash_value = hash((const unsigned char*)buf.get_buffer());
+    st->hash_computed = true;
+    return true;
 }
 
 int main(int argc, char **argv)
@@ -74,87 +116,22 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    AstPrinter printer;
-    StringBuffer buf;
-    printer.print_ast(&buf, top_ast);
-    printf("%s", buf.get_buffer());
-//     print_ast(top_ast);
-
     SymbolTable symtable;
     bool bret = symtable.initialize(top_ast);
     if (!bret) return -1;
 
+    loop_all_structs(top_ast, &symtable, compute_simple);
+    loop_all_structs(top_ast, &symtable, compute_hash);
+/*
+    AstPrinter printer;
+    StringBuffer buf;
+    printer.print_ast(&buf, top_ast);
+    printf("%s", buf.get_buffer());
+*/
 
+    CPrinter printer;
+    StringBuffer buf;
+    printer.print(&buf, top_ast);
+    printf("%s", buf.get_buffer());
     return 0;
-}
-
-
-static const char * ElementTypeToStr[] = {
-    "uint8_t",
-    "uint16_t",
-    "uint32_t",
-    "uint64_t",
-    "int8_t",
-    "int16_t",
-    "int32_t",
-    "int64_t",
-    "float",
-    "double",
-    "std::string",
-    "bool"
-};
-
-void print_elem(u32 ident, ast_element *elem)
-{
-    printf("%*s", ident, " "); // indentation
-    ast_array_definition *ar = elem->array_suffix;
-    bool close_array = false;
-
-    if (ar && ar->size == 0 && elem->is_dynamic_array) {
-        printf("std::vector< ");
-        close_array = true;
-    }
-    if (elem->custom_name) {
-        printf("%s ", elem->custom_name);
-    } else {
-        printf("%s ", ElementTypeToStr[elem->type]);
-    }
-    if (close_array) {
-        printf("> ");
-    }
-    printf("%s", elem->name);
-    while(ar != nullptr) {
-        if (ar->size != 0) printf("[%ld]", ar->size);
-        ar = ar->next;
-    }
-    printf(";\n");
-}
-
-void print_struct(u32 ident, ast_struct *st)
-{
-    printf("%*sstruct %s {\n", ident, " ", st->name);
-    for(auto *elem: st->elements) {
-        print_elem(ident + 4, elem);
-    }
-    printf("%*s}\n\n", ident, " ");
-}
-
-void print_namespace(u32 ident, ast_namespace *sp)
-{
-    printf("%.*snamespace %s {\n",ident, " ", sp->name);
-    for(auto *st: sp->structs) {
-        print_struct(ident+4,st);
-    }
-    printf("%*s}\n\n", ident, " ");
-}
-
-void print_ast(ast_global *top)
-{
-    for(auto *sp: top->spaces) {
-        print_namespace(4, sp);
-    }
-    printf("\nGlobal namespace:\n");
-    for(auto *st: top->global_space.structs) {
-        print_struct(4, st);
-    }
 }
