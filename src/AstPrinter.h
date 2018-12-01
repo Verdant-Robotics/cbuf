@@ -1,11 +1,11 @@
 #pragma once
 
 #include "ast.h"
+#include "StringBuffer.h"
 
 class AstPrinter
 {
-    char *buffer;
-    char *end;
+    StringBuffer buffer;
     void print_elem(u32 ident, ast_element *elem);
     void print_struct(u32 ident, ast_struct *st);
     void print_namespace(u32 ident, ast_namespace *sp);
