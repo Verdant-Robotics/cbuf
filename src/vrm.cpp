@@ -75,8 +75,9 @@ int main(int argc, char **argv)
     }
 
     AstPrinter printer;
-    auto *str = printer.print_ast(top_ast);
-    printf("%s", str);
+    StringBuffer buf;
+    printer.print_ast(&buf, top_ast);
+    printf("%s", buf.get_buffer());
 //     print_ast(top_ast);
 
     SymbolTable symtable;
