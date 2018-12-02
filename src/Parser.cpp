@@ -151,6 +151,9 @@ ast_element* Parser::parseElementDeclaration()
                     elem->array_suffix = ar;
                     last_array = ar;
                 } else {
+                    // TODO: Enable Multidimensional arrays when needed
+                    Error("Multidimensional arrays are not supported yet\n");
+                    return nullptr;
                     last_array->next = ar;
                     last_array = ar;
                 }

@@ -43,6 +43,10 @@ namespace messages
         string name;
 
         // it is possible to nest structures as needed, even in arrays
-        image  img;
+        image  img[3];
+
+        // Complex string array, which is variable upon variable
+        string names[5];
+        string hard_dynamic[];
     }
 }

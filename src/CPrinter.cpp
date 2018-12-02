@@ -31,6 +31,13 @@ static size_t ElementTypeToBytes[] = {
     4, // "bool"
 };
 
+static bool simple_type(ElementType t)
+{
+    if (t != TYPE_STRING && t != TYPE_CUSTOM) {
+        return true;
+    }
+    return false;
+}
 
 void CPrinter::print(u32 ident, ast_namespace *sp)
 {
@@ -102,31 +109,132 @@ void CPrinter::print(u32 ident, ast_struct *st)
     } else {
         buffer->print("%*ssize_t encode_size()\n", ident+4, "");
         buffer->print("%*s{\n", ident+4, "");
-        buffer->print("%*ssize_t ret_size =\n", ident+8, "");
-        buffer->print("%*ssizeof(preamble)\n", ident+12, "");
+        buffer->print("%*ssize_t ret_size = sizeof(preamble);\n", ident+8, "");
         for(auto *elem: st->elements) {
             if (elem->array_suffix) {
-                if (elem->is_dynamic_array) {
-                    buffer->print("%*s+ sizeof(%s) * %s.size() + 4\n", ident+12, "", ElementTypeToStr[elem->type], elem->name );
+                if (simple_type(elem->type)) {
+                    // All the elements have the same size, easy
+                    buffer->print("%*sret_size += sizeof(%s) *", ident+8, "", 
+                        ElementTypeToStr[elem->type] );
+                    if (elem->is_dynamic_array) {
+                        buffer->print(" %s.size();\n", elem->name);
+                        buffer->print("%*sret_size += sizeof(uint32_t); // Encode the length of %s\n", 
+                            ident+8, "", elem->name);
+                    } else {
+                        buffer->print(" %d;\n", elem->array_suffix->size);
+                    }
+                } else if (elem->type == TYPE_CUSTOM) {
+                    // check if custom is simple or not
+                    auto *inner_st = sym->find_symbol(elem->custom_name);
+                    if (inner_st->simple) {
+                        buffer->print("%*sret_size += %s[0].encode_size() *", ident+8, "", 
+                            elem->name );
+                        if (elem->is_dynamic_array) {
+                            buffer->print(" %s.size();\n", elem->name);
+                        } else {
+                            buffer->print(" %d;\n", elem->array_suffix->size);
+                        }
+                    } else {
+                        // We have to compute the size one by one...
+                        buffer->print("%*sfor (auto &%s_elem: %s) {\n", ident+8, "", elem->name, elem->name);
+                        buffer->print("%*sret_size += %s_elem.encode_size();\n", ident+12, "", elem->name );
+                        buffer->print("%*s}\n", ident+8, "");
+                    }
                 } else {
-                    buffer->print("%*s+ sizeof(%s) * %d\n", ident+12, "", ElementTypeToStr[elem->type], elem->array_suffix->size );
+                    assert(elem->type == TYPE_STRING);
+                    // We have to compute the size one by one...
+                    buffer->print("%*sfor (auto &%s_elem: %s) {\n", ident+8, "", elem->name, elem->name);
+                    buffer->print("%*sret_size += %s_elem.length() + 4;\n", ident+12, "", elem->name );
+                    buffer->print("%*s}\n", ident+8, "");
                 }
-            }
-            if (elem->type == TYPE_CUSTOM) {
-                buffer->print("%*s+ %s.encode_size()\n", ident+12, "", elem->name );
+            } else if (elem->type == TYPE_CUSTOM) {
+                buffer->print("%*sret_size += %s.encode_size();\n", ident+8, "", elem->name );
             } else if (elem->type == TYPE_STRING) {
-                buffer->print("%*s+ %s.length() + 4\n", ident+12, "", elem->name );
+                buffer->print("%*sret_size += %s.length() + 4;\n", ident+8, "", elem->name );
             } else {
-                buffer->print("%*s+ sizeof(%s) // for %s\n", ident+12, "", ElementTypeToStr[elem->type], elem->name );
+                buffer->print("%*sret_size += sizeof(%s); // for %s\n", ident+8, "", ElementTypeToStr[elem->type], elem->name );
             }
         }
-        buffer->print("%*s;\n", ident+8, "");
         buffer->print("%*sreturn ret_size;\n", ident+8, "");
         buffer->print("%*s}\n\n", ident+4, "");
 
+        buffer->print("%*sbool encode(char *buf, unsigned int buf_size)\n", ident+4, "");
+        buffer->print("%*s{\n\n", ident+4, "");
+        buffer->print("%*spreamble.size = encode_size();\n", ident+8, "");
+        buffer->print("%*sif (buf_size < preamble.size) return false;\n", ident+8, "");
+        buffer->print("%*s*(uint64_t *)buf = preamble.hash;\n", ident+8, "");
+        buffer->print("%*sbuf += sizeof(uint64_t);\n", ident+8, "");
+        buffer->print("%*s*(uint32_t *)buf = preamble.size;\n", ident+8, "");
+        buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+        for(auto *elem: st->elements) {
+            if (elem->array_suffix) {
+                if (simple_type(elem->type)) {
+                    if (elem->is_dynamic_array) {
+                        buffer->print("%*s*(uint32_t *)buf = (uint32_t)%s.size();\n", ident+8, "", elem->name );
+                        buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                        buffer->print("%*smemcpy(buf, &%s[0], %s.size()*sizeof(%s));\n", ident+8, "", 
+                            elem->name, elem->name, ElementTypeToStr[elem->type]);
+                        buffer->print("%*sbuf += %s.size()*sizeof(%s);\n", ident+8, "", elem->name, ElementTypeToStr[elem->type]);
+                    } else {
+                        buffer->print("%*smemcpy(buf, %s, %d*sizeof(%s));\n", ident+8, "", 
+                            elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        buffer->print("%*sbuf += %d*sizeof(%s);\n", ident+8, "", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                    }
+                } else if (elem->type == TYPE_CUSTOM) {
+                    auto *inner_st = sym->find_symbol(elem->custom_name);
+                    if (inner_st->simple) {
+                        if (elem->is_dynamic_array) {
+                            buffer->print("%*s*(uint32_t *)buf = (uint32_t)%s.size();\n", ident+8, "", elem->name );
+                            buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                            buffer->print("%*smemcpy(buf, &%s[0], %s.size()*%s[0].encode_size());\n", ident+8, "", 
+                                elem->name, elem->name, elem->name);
+                            buffer->print("%*sbuf += %s.size()*%s[0].encode_size();\n", ident+8, "", elem->name, elem->name);
+                        } else {
+                            buffer->print("%*smemcpy(buf, %s, %d*%s[0].encode_size());\n", ident+8, "", 
+                                elem->name, elem->array_suffix->size, elem->name);
+                            buffer->print("%*sbuf += %d*%s[0].encode_size();\n", ident+8, "", elem->array_suffix->size, elem->name);
+                        }
+                    } else {
+                        if (elem->is_dynamic_array) {
+                            buffer->print("%*s*(uint32_t *)buf = (uint32_t)%s.size();\n", ident+8, "", elem->name );
+                            buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                        } // No need to encode elements on the static array case, we know them already
+                        buffer->print("%*sfor(auto &%s_elem: %s) {\n", ident+8, "", elem->name, elem->name);
+                        buffer->print("%*s%s_elem.encode(buf, buf_size);\n", ident+12, "", elem->name);
+                        buffer->print("%*sbuf += %s_elem.encode_size();\n", ident+12, "", elem->name);
+                        buffer->print("%*s}\n", ident+8, "", elem->name);
+                    }
+                } else {
+                    assert(elem->type == TYPE_STRING);
 
-        // Just the prototype, implement further down
-        buffer->print("%*sbool encode(char *buf, unsigned int buf_size);\n", ident+4, "");
+                    if (elem->is_dynamic_array) {
+                        buffer->print("%*s*(uint32_t *)buf = (uint32_t)%s.size();\n", ident+8, "", elem->name );
+                        buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                    } // No need to encode elements on the static array case, we know them already
+                    buffer->print("%*sfor(auto &%s_elem: %s) {\n", ident+8, "", elem->name, elem->name);
+                    buffer->print("%*s*(uint32_t *)buf = (uint32_t)%s_elem.length();\n", ident+12, "", elem->name);
+                    buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+12, "");
+                    buffer->print("%*smemcpy(buf, %s_elem.c_str(), %s_elem.length());\n", ident+12, "", elem->name, elem->name);
+                    buffer->print("%*sbuf += %s_elem.length();\n", ident+12, "", elem->name);
+                    buffer->print("%*s}\n", ident+8, "", elem->name);
+                }
+            } else if (elem->type == TYPE_CUSTOM) {
+                buffer->print("%*s%s.encode(buf, buf_size);\n", ident+8, "", elem->name );
+                buffer->print("%*sbuf += %s.encode_size();\n", ident+8, "", elem->name);
+            } else if (elem->type == TYPE_STRING) {
+                buffer->print("%*s*(uint32_t *)buf = (uint32_t)%s.length();\n", ident+8, "", elem->name );
+                buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                buffer->print("%*smemcpy(buf, %s.c_str(), %s.length());\n", ident+8, "", elem->name, elem->name);
+                buffer->print("%*sbuf += %s.length();\n", ident+8, "", elem->name);
+            } else {
+                buffer->print("%*s*(%s *)buf = %s;\n", ident+8, "", ElementTypeToStr[elem->type], elem->name );
+                buffer->print("%*sbuf += sizeof(%s);\n", ident+8, "", ElementTypeToStr[elem->type]);
+            }
+        }
+        buffer->print("%*s\n", ident+8, "");
+        buffer->print("%*sreturn true;\n", ident+8, "");
+        buffer->print("%*s}\n\n", ident+4, "");
+
         buffer->print("%*s// This variant allocates memory on the buffer, to be freed later.\n", ident+4, "");
         buffer->print("%*sconst char *encode();\n", ident+4, "");
     }
@@ -160,9 +268,10 @@ void CPrinter::print(u32 ident, ast_element *elem)
     buffer->print(";\n");
 }
 
-void CPrinter::print(StringBuffer *buf, ast_global *top_ast)
+void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbols)
 {
     buffer = buf;
+    sym = symbols;
 
     buffer->print("#pragma once\n");
     buffer->print("#include \"vrm_preamble.h\"\n");
@@ -181,4 +290,5 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast)
     }
 
     buffer = nullptr;
+    sym = nullptr;
 }

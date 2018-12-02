@@ -108,7 +108,8 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    std::string nk;
+    int arr[5];
+    for(auto &a: arr) { a = 4;}
     // checkParsing(argv[1]);
 
     auto top_ast = parser.Parse(argv[1], &pool);
@@ -132,7 +133,7 @@ int main(int argc, char **argv)
 
     CPrinter printer;
     StringBuffer buf;
-    printer.print(&buf, top_ast);
+    printer.print(&buf, top_ast, &symtable);
     printf("%s", buf.get_buffer());
     return 0;
 }
