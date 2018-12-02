@@ -1,3 +1,7 @@
+package(
+    default_visibility = ["//visibility:public"]
+)
+
 cc_binary(
     name="vrm",
     srcs=[
@@ -28,4 +32,14 @@ cc_binary(
         "src/SrcLocation.h",
         "src/ast.h",
     ],
+)
+
+cc_library(
+    name="vrm_headers",
+    hdrs=[
+        "include/vrm_preamble.h",
+    ],
+    includes=[
+        "include",
+    ]
 )
