@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <functional>
+#include <string>
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "AstPrinter.h"
@@ -71,7 +71,7 @@ unsigned long hash(const unsigned char *str)
     unsigned long hash = 5381;
     int c;
 
-    while (c = *str++)
+    while ((c = *str++))
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     return hash;
@@ -108,6 +108,7 @@ int main(int argc, char **argv)
         exit(0);
     }
 
+    std::string nk;
     // checkParsing(argv[1]);
 
     auto top_ast = parser.Parse(argv[1], &pool);
