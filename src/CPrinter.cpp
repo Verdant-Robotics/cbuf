@@ -257,6 +257,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                         if (elem->is_dynamic_array) {
                             buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
                             buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                            buffer->print("%*s%s.resize(%s_count);\n", ident+8, "", elem->name, elem->name);
                             buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
                             buffer->print("%*s%s[i].decode(buf, buf_size);\n", ident+12, "", elem->name );
                             buffer->print("%*sbuf += %s[i].preamble.size;\n", ident+12, "", elem->name);
@@ -271,6 +272,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                         if (elem->is_dynamic_array) {
                             buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
                             buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                            buffer->print("%*s%s.resize(%s_count);\n", ident+8, "", elem->name, elem->name);
                             buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
                         } else { // No need to decode the number of elements on the static array case, we know them already
                             buffer->print("%*sfor(uint32_t i=0; i<%lu; i++) {\n", ident+8, "", elem->array_suffix->size );
@@ -285,6 +287,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                     if (elem->is_dynamic_array) {
                         buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
                         buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                        buffer->print("%*s%s.resize(%s_count);\n", ident+8, "", elem->name, elem->name);
                         buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
                     } else {
                         buffer->print("%*sfor(uint32_t i=0; i<%lu; i++) {\n", ident+8, "", elem->array_suffix->size );
