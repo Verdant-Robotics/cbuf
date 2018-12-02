@@ -16,21 +16,6 @@ static const char * ElementTypeToStr[] = {
     "bool"
 };
 
-static size_t ElementTypeToBytes[] = {
-    1, // "uint8_t",
-    2, // "uint16_t",
-    4, // "uint32_t",
-    8, // "uint64_t",
-    1, // "int8_t",
-    2, // "int16_t",
-    4, // "int32_t",
-    8, // "int64_t",
-    4, // "float",
-    8, // "double",
-    0, // "std::string",
-    4, // "bool"
-};
-
 static bool simple_type(ElementType t)
 {
     if (t != TYPE_STRING && t != TYPE_CUSTOM) {
@@ -121,7 +106,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                         buffer->print("%*sret_size += sizeof(uint32_t); // Encode the length of %s\n", 
                             ident+8, "", elem->name);
                     } else {
-                        buffer->print(" %d;\n", elem->array_suffix->size);
+                        buffer->print(" %lu;\n", elem->array_suffix->size);
                     }
                 } else if (elem->type == TYPE_CUSTOM) {
                     // check if custom is simple or not
@@ -132,7 +117,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                         if (elem->is_dynamic_array) {
                             buffer->print(" %s.size();\n", elem->name);
                         } else {
-                            buffer->print(" %d;\n", elem->array_suffix->size);
+                            buffer->print(" %lu;\n", elem->array_suffix->size);
                         }
                     } else {
                         // We have to compute the size one by one...
@@ -159,7 +144,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
         buffer->print("%*s}\n\n", ident+4, "");
 
         buffer->print("%*sbool encode(char *buf, unsigned int buf_size)\n", ident+4, "");
-        buffer->print("%*s{\n\n", ident+4, "");
+        buffer->print("%*s{\n", ident+4, "");
         buffer->print("%*spreamble.size = encode_size();\n", ident+8, "");
         buffer->print("%*sif (buf_size < preamble.size) return false;\n", ident+8, "");
         buffer->print("%*s*(uint64_t *)buf = preamble.hash;\n", ident+8, "");
@@ -178,7 +163,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                     } else {
                         buffer->print("%*smemcpy(buf, %s, %d*sizeof(%s));\n", ident+8, "", 
                             elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
-                        buffer->print("%*sbuf += %d*sizeof(%s);\n", ident+8, "", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        buffer->print("%*sbuf += %lu*sizeof(%s);\n", ident+8, "", elem->array_suffix->size, ElementTypeToStr[elem->type]);
                     }
                 } else if (elem->type == TYPE_CUSTOM) {
                     auto *inner_st = sym->find_symbol(elem->custom_name);
@@ -192,7 +177,7 @@ void CPrinter::print(u32 ident, ast_struct *st)
                         } else {
                             buffer->print("%*smemcpy(buf, %s, %d*%s[0].encode_size());\n", ident+8, "", 
                                 elem->name, elem->array_suffix->size, elem->name);
-                            buffer->print("%*sbuf += %d*%s[0].encode_size();\n", ident+8, "", elem->array_suffix->size, elem->name);
+                            buffer->print("%*sbuf += %lu*%s[0].encode_size();\n", ident+8, "", elem->array_suffix->size, elem->name);
                         }
                     } else {
                         if (elem->is_dynamic_array) {
@@ -235,8 +220,98 @@ void CPrinter::print(u32 ident, ast_struct *st)
         buffer->print("%*sreturn true;\n", ident+8, "");
         buffer->print("%*s}\n\n", ident+4, "");
 
-        buffer->print("%*s// This variant allocates memory on the buffer, to be freed later.\n", ident+4, "");
-        buffer->print("%*sconst char *encode();\n", ident+4, "");
+        buffer->print("%*sconst char *encode()\n", ident+4, "");
+        buffer->print("%*s{\n", ident+4, "");
+        buffer->print("%*spreamble.size = encode_size();\n", ident+8, "");
+        buffer->print("%*schar *buf = (char *)malloc(preamble.size);\n", ident+8, "");
+        buffer->print("%*sencode(buf, preamble.size);\n", ident+8, "");
+        buffer->print("%*sreturn buf;\n", ident+8, "");
+        buffer->print("%*s}\n\n", ident+4, "");
+
+        buffer->print("%*sbool decode(char *buf, unsigned int buf_size)\n", ident+4, "");
+        buffer->print("%*s{\n", ident+4, "");
+        buffer->print("%*svrm_preamble *pre = (vrm_preamble *)buf;\n", ident+8, "");
+        buffer->print("%*sif (pre->hash != TYPE_HASH) return false;\n", ident+8, "");
+        buffer->print("%*sif (pre->size > buf_size) return false;\n", ident+8, "");
+        buffer->print("%*spreamble.size = pre->size;\n", ident+8, "");
+        buffer->print("%*sbuf += sizeof(uint64_t) + sizeof(uint32_t);\n", ident+8, "");
+
+        for(auto *elem: st->elements) {
+            if (elem->array_suffix) {
+                if (simple_type(elem->type)) {
+                    if (elem->is_dynamic_array) {
+                        buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
+                        buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                        buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
+                        buffer->print("%*s%s.push_back(*(%s *)buf);\n", ident+12, "", elem->name, ElementTypeToStr[elem->type] );
+                        buffer->print("%*sbuf += sizeof(%s);\n", ident+12, "", ElementTypeToStr[elem->type]);
+                        buffer->print("%*s}\n", ident+8, "");
+                    } else {
+                        buffer->print("%*smemcpy(%s, buf, %d*sizeof(%s));\n", ident+8, "", 
+                            elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        buffer->print("%*sbuf += %lu*sizeof(%s);\n", ident+8, "", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                    }
+                } else if (elem->type == TYPE_CUSTOM) {
+                    auto *inner_st = sym->find_symbol(elem->custom_name);
+                    if (inner_st->simple) {
+                        if (elem->is_dynamic_array) {
+                            buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
+                            buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                            buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
+                            buffer->print("%*s%s[i].decode(buf, buf_size);\n", ident+12, "", elem->name );
+                            buffer->print("%*sbuf += %s[i].preamble.size;\n", ident+12, "", elem->name);
+                            buffer->print("%*s}\n", ident+8, "");
+                        } else {
+                            buffer->print("%*smemcpy(%s, buf, %d*%s[0].encode_size());\n", ident+8, "", 
+                                elem->name, elem->array_suffix->size, elem->name);
+                            buffer->print("%*sbuf += %lu*%s[0].encode_size();\n", ident+8, "", elem->array_suffix->size, elem->name);
+                        }
+                    } else {
+
+                        if (elem->is_dynamic_array) {
+                            buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
+                            buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                            buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
+                        } else { // No need to decode the number of elements on the static array case, we know them already
+                            buffer->print("%*sfor(uint32_t i=0; i<%lu; i++) {\n", ident+8, "", elem->array_suffix->size );
+                        }
+                        buffer->print("%*s%s[i].decode(buf, buf_size);\n", ident+12, "", elem->name );
+                        buffer->print("%*sbuf += %s[i].preamble.size;\n", ident+12, "", elem->name);
+                        buffer->print("%*s}\n", ident+8, "");
+                    }
+                } else {
+                    assert(elem->type == TYPE_STRING);
+
+                    if (elem->is_dynamic_array) {
+                        buffer->print("%*suint32_t %s_count = *(uint32_t *)buf;\n", ident+8, "", elem->name );
+                        buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                        buffer->print("%*sfor(uint32_t i=0; i<%s_count; i++) {\n", ident+8, "", elem->name );
+                    } else {
+                        buffer->print("%*sfor(uint32_t i=0; i<%lu; i++) {\n", ident+8, "", elem->array_suffix->size );
+                    }
+                    buffer->print("%*suint32_t %s_length = *(uint32_t *)buf;\n", ident+12, "", elem->name );
+                    buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+12, "");
+                    buffer->print("%*s%s[i] = std::string(buf, %s_length);\n", ident+12, "", elem->name, elem->name );
+                    buffer->print("%*sbuf += %s_length;\n", ident+12, "", elem->name);
+                    buffer->print("%*s}\n", ident+8, "");
+                }
+            } else if (elem->type == TYPE_CUSTOM) {
+                buffer->print("%*s%s.decode(buf, buf_size);\n", ident+8, "", elem->name );
+                buffer->print("%*sbuf += %s.preamble.size;\n", ident+8, "", elem->name);
+            } else if (elem->type == TYPE_STRING) {
+                buffer->print("%*suint32_t %s_length = *(uint32_t *)buf;\n", ident+8, "", elem->name );
+                buffer->print("%*sbuf += sizeof(uint32_t);\n", ident+8, "");
+                buffer->print("%*s%s = std::string(buf, %s_length);\n", ident+8, "", elem->name, elem->name );
+                buffer->print("%*sbuf += %s_length;\n", ident+8, "", elem->name);
+            } else {
+                buffer->print("%*s%s = *(%s *)buf;\n", ident+8, "", elem->name, ElementTypeToStr[elem->type]);
+                buffer->print("%*sbuf += sizeof(%s);\n", ident+8, "", ElementTypeToStr[elem->type]);
+            }
+        }
+        buffer->print("%*s\n", ident+8, "");
+        buffer->print("%*sreturn true;\n", ident+8, "");
+        buffer->print("%*s}\n\n", ident+4, "");
+
     }
 
     buffer->print("%*s};\n\n", ident, "");
