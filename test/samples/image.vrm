@@ -49,4 +49,6 @@ namespace messages
         string names[5];
         string hard_dynamic[];
     }
+
+    channel img_ch : image
 }

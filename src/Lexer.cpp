@@ -20,6 +20,7 @@ struct ReservedKeyword {
 } reserved_keywords[] = {
     { "return",   TK_RETURN },
     { "struct",   TK_STRUCT },
+    { "channel",  TK_CHANNEL },
     { "if",       TK_IF },
     { "else",     TK_ELSE },
     { "while",    TK_WHILE },

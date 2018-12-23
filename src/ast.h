@@ -41,21 +41,30 @@ struct ast_struct
 {
     TextType name = nullptr ;
     Array<ast_element *> elements;    
-    struct ast_namespace* space = nullptr;
+    ast_namespace* space = nullptr;
     u64 hash_value = 0;
     bool simple = false;
     bool simple_computed = false;
     bool hash_computed = false;
 };
 
+struct ast_channel
+{
+    TextType name = nullptr;
+    TextType inner_struct = nullptr;
+    ast_namespace *space = nullptr;
+};
+
 struct ast_namespace
 {
     TextType name = nullptr ;
     Array<ast_struct *> structs;
+    Array<ast_channel *> channels;
 };
 
 struct ast_global
 {
     Array<ast_namespace *> spaces;
+    Array<ast_channel *> channels;
     ast_namespace global_space;
 };

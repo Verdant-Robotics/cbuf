@@ -60,6 +60,13 @@ void AstPrinter::print_struct(u32 ident, ast_struct *st)
     buffer->print("%*s}\n\n", ident, "");
 }
 
+void AstPrinter::print_channel(u32 ident, ast_channel *cn)
+{
+    buffer->print("%*schannel %s {\n", ident, "", cn->name);
+    buffer->print("%*s%s data[];\n", ident+4, "", cn->inner_struct);
+    buffer->print("%*s}\n\n", ident, "");
+}
+
 void AstPrinter::print_namespace(u32 ident, ast_namespace *sp)
 {
     buffer->print("%*snamespace %s {\n",ident, "", sp->name);

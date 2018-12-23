@@ -38,6 +38,7 @@ cc_library(
     name="vrm_headers",
     hdrs=[
         "include/vrm_preamble.h",
+        "include/circular_buffer.h",
     ],
     includes=[
         "include",

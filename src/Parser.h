@@ -21,6 +21,7 @@ public:
 
     ast_global * Parse(const char *filename, PoolAllocator *pool);
     ast_struct* parseStruct();
+    ast_channel* parseChannel();
     ast_namespace* parseNamespace();
     const char *getErrorString() { return errorStringBuffer; } 
 };

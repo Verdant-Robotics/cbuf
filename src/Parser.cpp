@@ -201,6 +201,38 @@ ast_struct* Parser::parseStruct()
     return nst;
 }
 
+ast_channel* Parser::parseChannel()
+{
+    Token t;
+    lex->getNextToken(t);
+
+    if (t.type != TK_CHANNEL) {
+        Error("Keyword 'channel' expected, found %s\n", TokenTypeToStr(t.type));
+        return nullptr;
+    }
+
+    lex->getNextToken(t);
+    if (t.type != TK_IDENTIFIER) {
+        Error("After channel there has to be an identifier (name)\n");
+        return nullptr;
+    }
+    ast_channel *cn = new ast_channel();
+    cn->name = t.string;
+
+    if (!MustMatchToken(TK_COLON, "Please use colon after a channel to describe the struct the channel is composed of\n")) {
+        return nullptr;
+    }
+
+    lex->getNextToken(t);
+    if (t.type != TK_IDENTIFIER) {
+        Error("After channel there has to be an identifier (name)\n");
+        return nullptr;
+    }
+    cn->inner_struct = t.string;
+
+    return cn;
+}
+
 ast_namespace* Parser::parseNamespace()
 {
     Token t;
@@ -224,16 +256,31 @@ ast_namespace* Parser::parseNamespace()
     }
 
     while(!lex->checkToken(TK_CLOSE_BRACKET)) {
-        if (lex->checkToken(TK_NAMESPACE)) {
+        Token t;
+        lex->lookaheadToken(t);
+
+        if (t.type == TK_NAMESPACE) {
             Error("Nested namespaces are not allowed");
             return nullptr;
         }
-        auto *st = parseStruct();
-        if (!success) {
+        if (t.type == TK_CHANNEL) {
+            auto *cn = parseChannel();
+            if (!success) {
+                return nullptr;
+            }
+            sp->channels.push_back(cn);
+            cn->space = sp;
+        } else if (t.type == TK_STRUCT) {
+            auto *st = parseStruct();
+            if (!success) {
+                return nullptr;
+            }
+            sp->structs.push_back(st);
+            st->space = sp;
+        } else {
+            Error("Unrecognized keyword inside a namespace: %s\n", TokenTypeToStr(t.type));
             return nullptr;
         }
-        sp->structs.push_back(st);
-        st->space = sp;
     }
     lex->consumeToken();
     return sp;
@@ -279,8 +326,14 @@ ast_global * Parser::Parse(const char *filename, PoolAllocator *pool)
             }
             top_ast->global_space.structs.push_back(st);
             st->space = &top_ast->global_space;
+        } else if (t.type == TK_CHANNEL) {
+            auto *cn = parseChannel();
+            if (!success) {
+                return nullptr;
+            }
+            top_ast->channels.push_back(cn);
         } else {
-            Error("Unknown token, at the top level only structs and namespaces are allowed\n");
+            Error("Unknown token [%s], at the top level only structs and namespaces are allowed\n", TokenTypeToStr(t.type));
             return nullptr;
         }
     }
