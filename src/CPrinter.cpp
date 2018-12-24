@@ -60,7 +60,7 @@ void CPrinter::print(ast_struct *st)
 
     buffer->print("/// This is here to ensure hash is always available, just in case.\n");
     buffer->print("static const uint64_t TYPE_HASH = 0x%lX;\n", st->hash_value);
-
+    buffer->print("static constexpr const char* TYPE_STRING = \"%s\";\n", st->name);
     buffer->print("\n");
 
     // Encode and decode
@@ -349,8 +349,18 @@ void CPrinter::print(ast_channel *cn)
     buffer->print("\n");
     buffer->print("// this function will open the channel, allocate memory, set the indices, and\n");
     buffer->print("// do any other needed initialization\n");
-    buffer->print("bool open_channel(unsigned int elems = 10);\n");
+    buffer->print("bool open_channel(const std::string &topic_name);\n");
     buffer->print("\n");
+
+    buffer->print("// This function will actually initialize the channel and put data on it\n");
+    buffer->print("bool prod_init(int num_elems = 10)\n");
+    buffer->print("{\n");
+    buffer->increase_ident();
+    buffer->print("return false;\n");
+    buffer->decrease_ident();
+    buffer->print("}\n");
+    buffer->print("\n");
+
 
     buffer->print("// Producer: get a pointer to a struct to fill\n");
     buffer->print("%s* prod_get_image()\n", cn->inner_struct);
@@ -445,7 +455,6 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
 
     buffer->print("#pragma once\n");
     buffer->print("#include \"vrm_preamble.h\"\n");
-    buffer->print("#include \"circular_buffer.h\"\n");
     buffer->print("#include <stdint.h> // uint8_t and such\n");
     buffer->print("#include <string.h> // memcpy\n");
     buffer->print("#include <vector>   // std::vector\n");
