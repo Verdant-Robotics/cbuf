@@ -48,6 +48,13 @@ struct ast_struct
     bool hash_computed = false;
 };
 
+struct ast_enum
+{
+    TextType name = nullptr;
+    Array<TextType> elements;
+    ast_namespace* space = nullptr;
+};
+
 struct ast_channel
 {
     TextType name = nullptr;
@@ -60,11 +67,13 @@ struct ast_namespace
     TextType name = nullptr ;
     Array<ast_struct *> structs;
     Array<ast_channel *> channels;
+    Array<ast_enum *> enums;
 };
 
 struct ast_global
 {
     Array<ast_namespace *> spaces;
     Array<ast_channel *> channels;
+    Array<ast_enum *> enums;
     ast_namespace global_space;
 };

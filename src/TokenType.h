@@ -54,6 +54,7 @@ enum TOKEN_TYPE {
     TK_BANG,
     TK_STRING,
     TK_CHAR,
+    TK_ENUM,
     TK_IF,
     TK_ELSE,
     TK_FOR,

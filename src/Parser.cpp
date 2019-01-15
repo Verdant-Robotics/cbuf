@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 static bool isBuiltInType(TOKEN_TYPE t)
 {
@@ -233,6 +234,65 @@ ast_channel* Parser::parseChannel()
     return cn;
 }
 
+ast_enum* Parser::parseEnum()
+{
+    Token t;
+    lex->getNextToken(t);
+
+    if (t.type != TK_ENUM) {
+        Error("Keyword 'enum' expected, found: %s\n", TokenTypeToStr(t.type));
+        return nullptr;
+    }
+
+    lex->getNextToken(t);
+    if (t.type != TK_IDENTIFIER) {
+        Error("After enum keyword there has to be an identifier (name), found: %s\n", TokenTypeToStr(t.type));
+        return nullptr;
+    }
+    ast_enum *en = new ast_enum();
+    en->name = t.string;
+
+    if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a namespace\n")) {
+        return nullptr;
+    }
+
+    while(!lex->checkToken(TK_CLOSE_BRACKET)) {
+        Token t;
+        lex->lookaheadToken(t);
+
+        if (t.type != TK_IDENTIFIER) {
+            Error("Inside an enum only identifiers are allowed, found: %s\n", TokenTypeToStr(t.type));
+            return nullptr;
+        }
+        // check that it is not a duplicate
+        bool found = false;
+        for(auto el:en->elements) {
+            if (!strcmp(el, t.string)) {
+                found = true;
+                break;
+            }
+        }
+        if (found) {
+            Error("Found duplicate identifier inside enum: %s\n", t.string);
+        }
+        en->elements.push_back(t.string);
+
+        lex->consumeToken();
+        lex->lookaheadToken(t);
+        if (t.type == TK_COMMA) {
+            // consume the comma
+            lex->consumeToken();
+        } else if (t.type == TK_CLOSE_BRACKET) {
+            // nothing to do, be ok to skip
+        } else {
+            Error("Found unexpected token: %s\n", TokenTypeToStr(t.type));
+            return nullptr;
+        }
+    }
+    lex->consumeToken();
+    return en;
+}
+
 ast_namespace* Parser::parseNamespace()
 {
     Token t;
@@ -277,6 +337,13 @@ ast_namespace* Parser::parseNamespace()
             }
             sp->structs.push_back(st);
             st->space = sp;
+        } else if (t.type == TK_ENUM) {
+            auto *en = parseEnum();
+            if (!success) {
+                return nullptr;
+            }
+            sp->enums.push_back(en);
+            en->space = sp;
         } else {
             Error("Unrecognized keyword inside a namespace: %s\n", TokenTypeToStr(t.type));
             return nullptr;
@@ -284,7 +351,6 @@ ast_namespace* Parser::parseNamespace()
     }
     lex->consumeToken();
     return sp;
-
 }
 
 ast_global * Parser::Parse(const char *filename, PoolAllocator *pool)
@@ -332,6 +398,13 @@ ast_global * Parser::Parse(const char *filename, PoolAllocator *pool)
                 return nullptr;
             }
             top_ast->channels.push_back(cn);
+        } else if (t.type == TK_ENUM) {
+            auto *en = parseEnum();
+            if (!success) {
+                return nullptr;
+            }
+            top_ast->enums.push_back(en);
+            en->space = &top_ast->global_space;
         } else {
             Error("Unknown token [%s], at the top level only structs and namespaces are allowed\n", TokenTypeToStr(t.type));
             return nullptr;

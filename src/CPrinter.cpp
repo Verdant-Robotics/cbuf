@@ -24,10 +24,32 @@ static bool simple_type(ElementType t)
     return false;
 }
 
+static bool struct_type(const ast_element *elem, const SymbolTable *sym )
+{
+    if (elem->type == TYPE_CUSTOM) {
+        return sym->find_struct(elem->custom_name) != nullptr;
+    }
+    return false;
+}
+
+static bool enum_type(const ast_element *elem, const SymbolTable *sym )
+{
+    if (elem->type == TYPE_CUSTOM) {
+        return sym->find_enum(elem->custom_name) != nullptr;
+    }
+    return false;
+}
+
+
 void CPrinter::print(ast_namespace *sp)
 {
     buffer->print("namespace %s {\n", sp->name);
     buffer->increase_ident();
+
+    for(auto *en: sp->enums) {
+        print(en);
+    }
+
     for(auto *st: sp->structs) {
         print(st);
     }
@@ -114,9 +136,9 @@ void CPrinter::print(ast_struct *st)
                     } else {
                         buffer->print_no(" %lu;\n", elem->array_suffix->size);
                     }
-                } else if (elem->type == TYPE_CUSTOM) {
+                } else if (struct_type(elem, sym)) {
                     // check if custom is simple or not
-                    auto *inner_st = sym->find_symbol(elem->custom_name);
+                    auto *inner_st = sym->find_struct(elem->custom_name);
                     if (inner_st->simple) {
                         buffer->print("ret_size += %s[0].encode_size() *", elem->name );
                         if (elem->is_dynamic_array) {
@@ -132,6 +154,9 @@ void CPrinter::print(ast_struct *st)
                         buffer->decrease_ident();
                         buffer->print("}\n");
                     }
+                } else if (enum_type(elem, sym)) {
+                    // Enums are always s32
+                    buffer->print("ret_size += sizeof(int32_t);\n");
                 } else {
                     assert(elem->type == TYPE_STRING);
                     // We have to compute the size one by one...
@@ -141,8 +166,10 @@ void CPrinter::print(ast_struct *st)
                     buffer->decrease_ident();
                     buffer->print("}\n");
                 }
-            } else if (elem->type == TYPE_CUSTOM) {
+            } else if (struct_type(elem, sym)) {
                 buffer->print("ret_size += %s.encode_size();\n", elem->name );
+            } else if (enum_type(elem, sym)) {
+                buffer->print("ret_size += sizeof(int32_t);\n", elem->name );
             } else if (elem->type == TYPE_STRING) {
                 buffer->print("ret_size += %s.length() + 4;\n", elem->name );
             } else {
@@ -174,8 +201,8 @@ void CPrinter::print(ast_struct *st)
                             elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
                         buffer->print("buf += %lu*sizeof(%s);\n", elem->array_suffix->size, ElementTypeToStr[elem->type]);
                     }
-                } else if (elem->type == TYPE_CUSTOM) {
-                    auto *inner_st = sym->find_symbol(elem->custom_name);
+                } else if (struct_type(elem, sym)) {
+                    auto *inner_st = sym->find_struct(elem->custom_name);
                     if (inner_st->simple) {
                         if (elem->is_dynamic_array) {
                             buffer->print("*(uint32_t *)buf = (uint32_t)%s.size();\n", elem->name );
@@ -200,6 +227,18 @@ void CPrinter::print(ast_struct *st)
                         buffer->decrease_ident();
                         buffer->print("}\n");
                     }
+                } else if (enum_type(elem, sym)) {
+                        if (elem->is_dynamic_array) {
+                            buffer->print("*(uint32_t *)buf = (uint32_t)%s.size();\n", elem->name );
+                            buffer->print("buf += sizeof(uint32_t);\n");
+                            buffer->print("memcpy(buf, &%s[0], %s.size()*sizeof(int32_t));\n", 
+                                elem->name, elem->name);
+                            buffer->print("buf += %s.size()*sizeof(int32_t);\n", elem->name);
+                        } else {
+                            buffer->print("memcpy(buf, %s, %d*sizeof(int32_t));\n",
+                                elem->name, elem->array_suffix->size);
+                            buffer->print("buf += %lu*sizeof(int32_t);\n", elem->array_suffix->size);
+                        }
                 } else {
                     assert(elem->type == TYPE_STRING);
 
@@ -216,9 +255,13 @@ void CPrinter::print(ast_struct *st)
                     buffer->decrease_ident();
                     buffer->print("}\n");
                 }
-            } else if (elem->type == TYPE_CUSTOM) {
-                buffer->print("%s.encode(buf, buf_size);\n", elem->name );
+            } else if (struct_type(elem, sym)) {
+                buffer->print("%s.encode(buf, buf_size);\n", elem->name);
                 buffer->print("buf += %s.encode_size();\n", elem->name);
+            } else if (enum_type(elem, sym)) {
+                // this is an enum, treat it as an s32;
+                buffer->print("*(int32_t *)buf = (int32_t)%s;\n", elem->name);
+                buffer->print("buf += sizeof(int32_t);\n");            
             } else if (elem->type == TYPE_STRING) {
                 buffer->print("*(uint32_t *)buf = (uint32_t)%s.length();\n", elem->name );
                 buffer->print("buf += sizeof(uint32_t);\n");
@@ -266,8 +309,8 @@ void CPrinter::print(ast_struct *st)
                             elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
                         buffer->print("buf += %lu*sizeof(%s);\n", elem->array_suffix->size, ElementTypeToStr[elem->type]);
                     }
-                } else if (elem->type == TYPE_CUSTOM) {
-                    auto *inner_st = sym->find_symbol(elem->custom_name);
+                } else if (struct_type(elem, sym)) {
+                    auto *inner_st = sym->find_struct(elem->custom_name);
                     if (inner_st->simple) {
                         if (elem->is_dynamic_array) {
                             buffer->print("uint32_t %s_count = *(uint32_t *)buf;\n", elem->name );
@@ -285,7 +328,6 @@ void CPrinter::print(ast_struct *st)
                             buffer->print("buf += %lu*%s[0].encode_size();\n", elem->array_suffix->size, elem->name);
                         }
                     } else {
-
                         if (elem->is_dynamic_array) {
                             buffer->print("uint32_t %s_count = *(uint32_t *)buf;\n", elem->name );
                             buffer->print("buf += sizeof(uint32_t);\n");
@@ -300,6 +342,22 @@ void CPrinter::print(ast_struct *st)
                         buffer->decrease_ident();
                         buffer->print("}\n");
                     }
+                } else if (enum_type(elem, sym)) {
+                    if (elem->is_dynamic_array) {
+                        buffer->print("uint32_t %s_count = *(uint32_t *)buf;\n", elem->name );
+                        buffer->print("buf += sizeof(uint32_t);\n");
+                        buffer->print("%s.resize(%s_count);\n", elem->name, elem->name);
+                        buffer->print("for(uint32_t i=0; i<%s_count; i++) {\n", elem->name );
+                        buffer->increase_ident();
+                        buffer->print("%s[i] = *(%s *)buf;\n", elem->name, elem->custom_name );
+                        buffer->print("buf += sizeof(int32_t);\n");
+                        buffer->decrease_ident();
+                        buffer->print("}\n");
+                    } else {
+                        buffer->print("memcpy(%s, buf, %d*sizeof(int32_t));\n", 
+                            elem->name, elem->array_suffix->size);
+                        buffer->print("buf += %lu*sizeof(int32_t);\n", elem->array_suffix->size, elem->name);
+                    }                
                 } else {
                     assert(elem->type == TYPE_STRING);
 
@@ -319,9 +377,12 @@ void CPrinter::print(ast_struct *st)
                     buffer->decrease_ident();
                     buffer->print("}\n");
                 }
-            } else if (elem->type == TYPE_CUSTOM) {
+            } else if (struct_type(elem, sym)) {
                 buffer->print("%s.decode(buf, buf_size);\n", elem->name );
                 buffer->print("buf += %s.preamble.size;\n", elem->name);
+            } else if (enum_type(elem, sym)) {
+                buffer->print("%s = *(%s *)buf;\n", elem->name, elem->custom_name);
+                buffer->print("buf += sizeof(int32_t);\n");            
             } else if (elem->type == TYPE_STRING) {
                 buffer->print("uint32_t %s_length = *(uint32_t *)buf;\n", elem->name );
                 buffer->print("buf += sizeof(uint32_t);\n");
@@ -418,6 +479,18 @@ void CPrinter::print(ast_channel *cn)
     buffer->print("};\n\n");
 }
 
+void CPrinter::print(ast_enum *en)
+{
+    buffer->print("enum %s\n", en->name);
+    buffer->print("{\n");
+    buffer->increase_ident();
+    for(auto el:en->elements) {
+        buffer->print("%s,\n", el);
+    }
+    buffer->decrease_ident();
+    buffer->print("};\n\n");
+}
+
 void CPrinter::print(ast_element *elem)
 {
     buffer->print("");
@@ -461,8 +534,8 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
     buffer->print("#include <string>   // std::string\n");
     buffer->print("\n");
 
-    for(auto *sp: top_ast->spaces) {
-        print(sp);
+    for(auto *en: top_ast->global_space.enums) {
+        print(en);
     }
 
     for(auto *st: top_ast->global_space.structs) {
@@ -471,6 +544,10 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
 
     for (auto *cn : top_ast->global_space.channels) {
         print(cn);
+    }
+
+    for(auto *sp: top_ast->spaces) {
+        print(sp);
     }
 
     buffer = nullptr;

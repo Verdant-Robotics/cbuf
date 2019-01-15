@@ -10,6 +10,7 @@ class CPrinter
     SymbolTable *sym;
     void print(ast_namespace *sp);
     void print(ast_struct *st);
+    void print(ast_enum *en);
     void print(ast_channel *cn);
     void print(ast_element *elem);
 

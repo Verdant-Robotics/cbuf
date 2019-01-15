@@ -48,11 +48,15 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
             return false;
         }
         if (elem->type == TYPE_CUSTOM) {
-            auto *inner_st = symtable->find_symbol(elem->custom_name);
-            if (inner_st == nullptr) {
+            if (!symtable->find_symbol(elem->custom_name)) {
                 fprintf(stderr, "Struct %s, element %s was referencing type %s and could not be found\n",
                     st->name, elem->name, elem->custom_name);
                 exit(-1);
+            }
+            auto *inner_st = symtable->find_struct(elem->custom_name);
+            if (inner_st == nullptr) {
+                // Must be an enum, it is simple
+                continue;
             }
             bool elem_simple = compute_simple(inner_st, symtable);
             if (!elem_simple) {
@@ -85,7 +89,12 @@ bool compute_hash(ast_struct *st, SymbolTable *symtable)
 
     for(auto *elem: st->elements) {
         if (elem->type == TYPE_CUSTOM) {
-            auto *inner_st = symtable->find_symbol(elem->custom_name);
+            auto *inner_st = symtable->find_struct(elem->custom_name);
+            if (!inner_st) {
+                printer.print_ast(&buf, elem);
+                continue;
+            }
+            assert(inner_st);
             bool bret = compute_hash(inner_st, symtable);
             if (!bret) return false;
             buf.print("%lX ", inner_st->hash_value);
@@ -108,8 +117,6 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    int arr[5];
-    for(auto &a: arr) { a = 4;}
     // checkParsing(argv[1]);
 
     auto top_ast = parser.Parse(argv[1], &pool);

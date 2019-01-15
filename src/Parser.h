@@ -20,6 +20,7 @@ public:
     bool success;
 
     ast_global * Parse(const char *filename, PoolAllocator *pool);
+    ast_enum* parseEnum();
     ast_struct* parseStruct();
     ast_channel* parseChannel();
     ast_namespace* parseNamespace();

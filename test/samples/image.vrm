@@ -20,6 +20,14 @@
 namespace messages
 {
 
+    // Define enums in the VRM file
+    enum MyFancyEnum
+    {
+        VALUE_1,  // No value assignment yet
+        VALUE_2,
+        VALUE_3
+    }
+
     // This is a POD, a simple structure
     // Prefer POD, they are much faster for serdes
     struct image 
@@ -30,11 +38,14 @@ namespace messages
         s32   type;   // opengl type
         double  timestamp;
         u8   pixels[1024]; // raw data
+        MyFancyEnum fancy;
     }
 
     struct complex_thing
     {
         s32  one_val;
+
+        MyFancyEnum fancy2;
         // Specify an array of unknown size by omitting the size
         // This is a std::vector in plain code
         s32  dynamic_array[];
@@ -50,5 +61,4 @@ namespace messages
         string hard_dynamic[];
     }
 
-    channel img_ch : image
 }
