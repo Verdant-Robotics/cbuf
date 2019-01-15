@@ -1,4 +1,4 @@
-cc_binary(
+cc_test(
     name="vrm_test",
     srcs=[
         "test_main.cpp",
