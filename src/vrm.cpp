@@ -104,7 +104,7 @@ int main(int argc, char **argv)
     Parser parser;
     PoolAllocator pool;
     if (argc < 2) {
-        printf("Please provide a vrm file\n");
+        fprintf(stderr, "Please provide a vrm file\n");
         exit(0);
     }
 
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 
     auto top_ast = parser.Parse(argv[1], &pool);
     if (!parser.success) {
-        printf("Error during parsing:\n%s\n", parser.getErrorString());
+        fprintf(stderr, "Error during parsing:\n%s\n", parser.getErrorString());
         return -1;
     }
 
