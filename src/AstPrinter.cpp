@@ -25,9 +25,8 @@ AstPrinter::~AstPrinter()
 {
 }
 
-void AstPrinter::print_elem(u32 ident, ast_element *elem)
+void AstPrinter::print_elem(ast_element *elem)
 {
-    buffer->print("%*s", ident, ""); // indentation
     ast_array_definition *ar = elem->array_suffix;
     bool close_array = false;
 
@@ -51,40 +50,42 @@ void AstPrinter::print_elem(u32 ident, ast_element *elem)
     buffer->print(";\n");
 }
 
-void AstPrinter::print_struct(u32 ident, ast_struct *st)
+void AstPrinter::print_struct(ast_struct *st)
 {
-    buffer->print("%*sstruct %s {\n", ident, "", st->name);
+    buffer->print("struct %s {\n", "", st->name);
+    buffer->increase_ident();
     for(auto *elem: st->elements) {
-        print_elem(ident + 4, elem);
+        print_elem(elem);
     }
-    buffer->print("%*s}\n\n", ident, "");
+    buffer->decrease_ident();
+    buffer->print("}\n\n", "");
 }
 
-void AstPrinter::print_channel(u32 ident, ast_channel *cn)
+void AstPrinter::print_channel(ast_channel *cn)
 {
-    buffer->print("%*schannel %s {\n", ident, "", cn->name);
-    buffer->print("%*s%s data[];\n", ident+4, "", cn->inner_struct);
-    buffer->print("%*s}\n\n", ident, "");
+    // deprecated
 }
 
-void AstPrinter::print_namespace(u32 ident, ast_namespace *sp)
+void AstPrinter::print_namespace(ast_namespace *sp)
 {
-    buffer->print("%*snamespace %s {\n",ident, "", sp->name);
+    buffer->print("namespace %s {\n", "", sp->name);
+    buffer->increase_ident();
     for(auto *st: sp->structs) {
-        print_struct(ident+4,st);
+        print_struct(st);
     }
-    buffer->print("%*s}\n\n", ident, "");
+    buffer->decrease_ident();
+    buffer->print("}\n\n", "");
 }
 
 void AstPrinter::print_ast(StringBuffer *buf, ast_global *ast)
 {
     buffer = buf;
     for(auto *sp: ast->spaces) {
-        print_namespace(0, sp);
+        print_namespace(sp);
     }
 
     for(auto *st: ast->global_space.structs) {
-        print_struct(0, st);
+        print_struct(st);
     }
     buffer = nullptr;
 }
@@ -92,13 +93,13 @@ void AstPrinter::print_ast(StringBuffer *buf, ast_global *ast)
 void AstPrinter::print_ast(StringBuffer *buf, ast_struct *ast)
 {
     buffer = buf;
-    print_struct(0, ast);
+    print_struct(ast);
     buffer = nullptr;
 }
 
 void AstPrinter::print_ast(StringBuffer *buf, ast_element *elem)
 {
     buffer = buf;
-    print_elem(0, elem);
+    print_elem(elem);
     buffer = nullptr;
 }

@@ -1,10 +1,15 @@
 #pragma once
+#include <stddef.h>
 
 class StringBuffer
 {
     char *buffer;
     char *end;
     int ident;
+    size_t buf_size;
+    size_t rem_size;
+
+    void realloc_buffer(int nsize);
 
 public:
     StringBuffer();
