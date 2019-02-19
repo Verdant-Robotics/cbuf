@@ -19,4 +19,6 @@ target_include_directories(vrm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
 add_library( vrm_lib INTERFACE )
 target_include_directories(vrm_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
-add_subdirectory( test )
+if (${ENABLE_TESTS})
+    add_subdirectory( test )
+endif()
