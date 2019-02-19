@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.2.0 )
 
-include_directories( ${CMAKE_ROOT}/include )
+# include_directories( ${CMAKE_ROOT}/include )
 
 add_custom_command(
     OUTPUT image.h
@@ -11,6 +11,7 @@ add_custom_command(
 
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 add_executable( test_main test_main.cpp image.h )
+target_link_libraries( test_main vrm_lib )
 
 add_test(
     NAME test_main
