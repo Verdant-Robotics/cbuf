@@ -18,6 +18,7 @@ target_include_directories(vrm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
 if (NOT TARGET vrm_lib)
     add_library( vrm_lib INTERFACE )
+    add_library( vrm_lib::vrm_lib ALIAS vrm_lib )
     target_include_directories(vrm_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 endif()
 
