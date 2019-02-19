@@ -16,8 +16,10 @@ set( VRM_SRCS
 add_executable( vrm ${VRM_SRCS} )
 target_include_directories(vrm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
-add_library( vrm_lib INTERFACE )
-target_include_directories(vrm_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+if (NOT TARGET vrm_lib)
+    add_library( vrm_lib INTERFACE )
+    target_include_directories(vrm_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+endif()
 
 if (${ENABLE_TESTS})
     add_subdirectory( test )
