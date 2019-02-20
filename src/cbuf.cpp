@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     Parser parser;
     PoolAllocator pool;
     if (argc < 2) {
-        fprintf(stderr, "Please provide a vrm file\n");
+        fprintf(stderr, "Please provide a cbuf file\n");
         exit(0);
     }
 

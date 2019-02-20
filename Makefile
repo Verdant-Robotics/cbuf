@@ -1,6 +1,6 @@
 # Makefile for VRM
 
-TARGET := vrm
+TARGET := cbuf
 CFLAGS = 
 LFLAGS = 
 LIBS = 
@@ -13,7 +13,7 @@ TARGETDIR = bin
 
 SOURCES += src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp
 SOURCES += src/Parser.cpp src/PoolAllocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
-SOURCES += src/TextType.cpp src/Token.cpp src/vrm.cpp
+SOURCES += src/TextType.cpp src/Token.cpp src/cbuf.cpp
 
 # ------------------------------------ COMMON SET OF RULES ------------------------
 MAKEFLAGS += --jobs=8

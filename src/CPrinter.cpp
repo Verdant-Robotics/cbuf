@@ -82,7 +82,9 @@ void CPrinter::print(ast_struct *st)
 
     buffer->print("/// This is here to ensure hash is always available, just in case.\n");
     buffer->print("static const uint64_t TYPE_HASH = 0x%lX;\n", st->hash_value);
+    buffer->print("static uint64_t hash() { return TYPE_HASH; }");
     buffer->print("static constexpr const char* TYPE_STRING = \"%s\";\n", st->name);
+    
     buffer->print("\n");
 
     // Encode and decode
