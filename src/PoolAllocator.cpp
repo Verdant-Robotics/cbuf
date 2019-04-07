@@ -7,7 +7,7 @@
 
 #define MEGABYTES (1024*1024)
 
-void * operator new (u64 size, PoolAllocator *p)
+void * operator new (size_t size, PoolAllocator *p)
 {
     return p->alloc(size);
 }
@@ -26,7 +26,7 @@ void PoolAllocator::allocateBlock(block * b)
     total_size += block_size;
 }
 
-void * PoolAllocator::allocateFromBlock(block * b, u64 size)
+void * PoolAllocator::allocateFromBlock(block * b, size_t size)
 {
     if (b->free_size >= size) {
         u8 *p = b->free_address;
@@ -37,7 +37,7 @@ void * PoolAllocator::allocateFromBlock(block * b, u64 size)
     return nullptr;
 }
 
-PoolAllocator::PoolAllocator(u64 start_size)
+PoolAllocator::PoolAllocator(size_t start_size)
 {
     if (start_size == 0) {
         block_size = 64 * MEGABYTES;
@@ -68,7 +68,7 @@ PoolAllocator::~PoolAllocator()
     }
 }
 
-void * PoolAllocator::alloc(u64 size)
+void * PoolAllocator::alloc(size_t size)
 {
     if (size > block_size) {
         printf("The allocator cannot handle such a large memory block!\n");
