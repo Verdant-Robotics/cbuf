@@ -68,7 +68,7 @@ void CPrinter::print(ast_struct *st)
     buffer->increase_ident();
 
     buffer->print("// This has to be the first member\n");
-    buffer->print("vrm_preamble preamble = {\n"); buffer->increase_ident();
+    buffer->print("cbuf_preamble preamble = {\n"); buffer->increase_ident();
     buffer->print("0x%lX,\n", st->hash_value);
     if (st->simple)
         buffer->print("sizeof(%s),\n", st->name);
@@ -108,7 +108,7 @@ void CPrinter::print(ast_struct *st)
         buffer->print("bool decode(char *buf, unsigned int buf_size)\n");
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("if (buf_size < sizeof(%s)) return false;\n", st->name);
-        buffer->print("vrm_preamble *pre = (vrm_preamble *)buf;\n");
+        buffer->print("cbuf_preamble *pre = (cbuf_preamble *)buf;\n");
         buffer->print("if (pre->hash != TYPE_HASH) return false;\n");
         buffer->print("memcpy(buf, this, sizeof(*this));\n");
         buffer->print("return true;\n"); buffer->decrease_ident();
@@ -116,7 +116,7 @@ void CPrinter::print(ast_struct *st)
         buffer->print("static bool decode(char *buf, unsigned int buf_size, %s** var)\n", st->name);
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("if (buf_size < sizeof(%s)) return false;\n", st->name);
-        buffer->print("vrm_preamble *pre = (vrm_preamble *)buf;\n");
+        buffer->print("cbuf_preamble *pre = (cbuf_preamble *)buf;\n");
         buffer->print("if (pre->hash != TYPE_HASH) return false;\n");
         buffer->print("*var = (%s *)buf;\n", st->name);
         buffer->print("return true;\n"); buffer->decrease_ident();
@@ -288,7 +288,7 @@ void CPrinter::print(ast_struct *st)
 
         buffer->print("bool decode(char *buf, unsigned int buf_size)\n");
         buffer->print("{\n"); buffer->increase_ident();
-        buffer->print("vrm_preamble *pre = (vrm_preamble *)buf;\n");
+        buffer->print("cbuf_preamble *pre = (cbuf_preamble *)buf;\n");
         buffer->print("if (pre->hash != TYPE_HASH) return false;\n");
         buffer->print("if (pre->size > buf_size) return false;\n");
         buffer->print("preamble.size = pre->size;\n");
@@ -529,7 +529,7 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
     sym = symbols;
 
     buffer->print("#pragma once\n");
-    buffer->print("#include \"vrm_preamble.h\"\n");
+    buffer->print("#include \"cbuf_preamble.h\"\n");
     buffer->print("#include <stdint.h> // uint8_t and such\n");
     buffer->print("#include <string.h> // memcpy\n");
     buffer->print("#include <vector>   // std::vector\n");

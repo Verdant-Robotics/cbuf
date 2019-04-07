@@ -1,6 +1,6 @@
 #pragma once
 
-struct vrm_preamble
+struct cbuf_preamble
 {
     unsigned long hash;
     unsigned int  size;
