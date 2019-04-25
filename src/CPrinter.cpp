@@ -110,7 +110,7 @@ void CPrinter::print(ast_struct *st)
         buffer->print("if (buf_size < sizeof(%s)) return false;\n", st->name);
         buffer->print("cbuf_preamble *pre = (cbuf_preamble *)buf;\n");
         buffer->print("if (pre->hash != TYPE_HASH) return false;\n");
-        buffer->print("memcpy(buf, this, sizeof(*this));\n");
+        buffer->print("memcpy(this, buf, sizeof(*this));\n");
         buffer->print("return true;\n"); buffer->decrease_ident();
         buffer->print("}\n\n");
         buffer->print("static bool decode(char *buf, unsigned int buf_size, %s** var)\n", st->name);
