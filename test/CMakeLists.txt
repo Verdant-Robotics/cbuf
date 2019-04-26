@@ -1,16 +1,16 @@
 cmake_minimum_required( VERSION 3.2.0 )
 
-# include_directories( ${CMAKE_ROOT}/include )
+include(BuildCbuf)
 
-add_custom_command(
-    OUTPUT image.h
-    COMMAND ${CMAKE_BINARY_DIR}/cbuf ${CMAKE_CURRENT_SOURCE_DIR}/samples/image.cbuf > image.h
-    DEPENDS cbuf ${CMAKE_CURRENT_SOURCE_DIR}/samples/image.cbuf
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
+build_cbuf( samples/image.cbuf )
 
-include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
-add_executable( test_main test_main.cpp image.h )
+add_custom_target( generate_cbuf_test DEPENDS
+  ${CMAKE_CURRENT_BINARY_DIR}/samples/image.h
+  )
+
+include_directories( ${CMAKE_CURRENT_BINARY_DIR}/samples )
+add_executable( test_main test_main.cpp )
+add_dependencies( test_main generate_cbuf_test )
 target_link_libraries( test_main cbuf_lib )
 
 add_test(
