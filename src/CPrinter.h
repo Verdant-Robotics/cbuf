@@ -14,6 +14,7 @@ class CPrinter
     void print(ast_channel *cn);
     void print(ast_element *elem);
 
+    void print_net(ast_struct *st);
   public:
     void print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbols);
 };

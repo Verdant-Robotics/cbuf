@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 3.2.0 )
 project( cbuf )
 
 option(CBUF_ENABLE_TESTS "Enable Tests" ON)
-if (${ENABLE_TESTS})
+if (${CBUF_ENABLE_TESTS})
     enable_testing()
 endif()
 
@@ -22,6 +22,6 @@ if (NOT TARGET cbuf_lib)
     target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 endif()
 
-if (${ENABLE_TESTS})
+if (${CBUF_ENABLE_TESTS})
     add_subdirectory( test )
 endif()

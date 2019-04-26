@@ -1,7 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+
 struct cbuf_preamble
 {
-    unsigned long hash;
-    unsigned int  size;
+    uint64_t hash;
+    uint32_t size;
 };
