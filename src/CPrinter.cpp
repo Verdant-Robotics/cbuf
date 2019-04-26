@@ -222,11 +222,13 @@ void CPrinter::print_net(ast_struct *st)
 
     buffer->print("bool decode_net(char *buf, unsigned int buf_size)\n");
     buffer->print("{\n"); buffer->increase_ident();
-    buffer->print("cbuf_preamble *pre = (cbuf_preamble *)buf;\n");
-    buffer->print("if (pre->hash != TYPE_HASH) return false;\n");
-    buffer->print("if (pre->size > buf_size) return false;\n");
-    buffer->print("preamble.size = pre->size;\n");
-    buffer->print("buf += sizeof(uint64_t) + sizeof(uint32_t);\n");
+    buffer->print("uint64_t buf_hash = *(uint64_t *)buf;\n");
+    buffer->print("if (buf_hash != TYPE_HASH) return false;\n");
+    buffer->print("buf += sizeof(uint64_t);\n");
+    buffer->print("uint32_t dec_size = *(uint32_t *)buf;\n");
+    buffer->print("if (dec_size > buf_size) return false;\n");
+    buffer->print("preamble.size = dec_size;\n");
+    buffer->print("buf += sizeof(uint32_t);\n");
 
     for(auto *elem: st->elements) {
         if (elem->array_suffix) {
