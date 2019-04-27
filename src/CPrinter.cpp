@@ -158,7 +158,7 @@ void CPrinter::print_net(ast_struct *st)
                     } else {
                         buffer->print("memcpy(buf, %s, %d*%s[0].encode_net_size());\n",
                             elem->name, (int)elem->array_suffix->size, elem->name);
-                        buffer->print("buf += %d*%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
+                        buffer->print("buf += %d*%s[0].encode_net_size();\n", (int)elem->array_suffix->size, elem->name);
                     }
                 } else {
                     if (elem->is_dynamic_array) {
