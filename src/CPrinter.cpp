@@ -1,5 +1,6 @@
 #include "CPrinter.h"
 #include <stdio.h>
+#include <inttypes.h>
 
 static const char * ElementTypeToStr[] = {
     "uint8_t",
@@ -344,7 +345,7 @@ void CPrinter::print(ast_struct *st)
 
     buffer->print("// This has to be the first member\n");
     buffer->print("cbuf_preamble preamble = {\n"); buffer->increase_ident();
-    buffer->print("0x%lX,\n", st->hash_value);
+    buffer->print("0x%" PRIX64 ",\n", st->hash_value);
     if (st->simple)
         buffer->print("sizeof(%s),\n", st->name);
     else
@@ -356,7 +357,7 @@ void CPrinter::print(ast_struct *st)
     }
 
     buffer->print("/// This is here to ensure hash is always available, just in case.\n");
-    buffer->print("static const uint64_t TYPE_HASH = 0x%lX;\n", st->hash_value);
+    buffer->print("static const uint64_t TYPE_HASH = 0x%" PRIX64 ";\n", st->hash_value);
     buffer->print("static uint64_t hash() { return TYPE_HASH; }\n");
     buffer->print("static constexpr const char* TYPE_STRING = \"%s\";\n", st->name);
     
