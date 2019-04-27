@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #if defined(_WINDOWS) || defined(_WIN32)
 #define PLATFORM_WINDOWS
 #elif defined(__linux__) || defined(__FreeBSD__)
@@ -27,7 +29,7 @@ typedef unsigned int       u32;
 typedef unsigned long long u64;
 #else
 #define U64FMT              "l"
-typedef unsigned long      u64;
+typedef uint64_t           u64;
 #endif
 typedef float              f32;
 typedef double             f64;
