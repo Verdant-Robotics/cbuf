@@ -143,8 +143,8 @@ void CPrinter::print_net(ast_struct *st)
                     buffer->print("buf += %s.size()*sizeof(%s);\n", elem->name, ElementTypeToStr[elem->type]);
                 } else {
                     buffer->print("memcpy(buf, %s, %d*sizeof(%s));\n",
-                        elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
-                    buffer->print("buf += %lu*sizeof(%s);\n", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        elem->name, (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                    buffer->print("buf += %d*sizeof(%s);\n", (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
                 }
             } else if (struct_type(elem, sym)) {
                 auto *inner_st = sym->find_struct(elem->custom_name);
@@ -157,8 +157,8 @@ void CPrinter::print_net(ast_struct *st)
                         buffer->print("buf += %s.size()*%s[0].encode_net_size();\n", elem->name, elem->name);
                     } else {
                         buffer->print("memcpy(buf, %s, %d*%s[0].encode_net_size());\n",
-                            elem->name, elem->array_suffix->size, elem->name);
-                        buffer->print("buf += %lu*%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
+                            elem->name, (int)elem->array_suffix->size, elem->name);
+                        buffer->print("buf += %d*%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
                     }
                 } else {
                     if (elem->is_dynamic_array) {
@@ -181,8 +181,8 @@ void CPrinter::print_net(ast_struct *st)
                         buffer->print("buf += %s.size()*sizeof(int32_t);\n", elem->name);
                     } else {
                         buffer->print("memcpy(buf, %s, %d*sizeof(int32_t));\n",
-                            elem->name, elem->array_suffix->size);
-                        buffer->print("buf += %lu*sizeof(int32_t);\n", elem->array_suffix->size);
+                            elem->name, (int)elem->array_suffix->size);
+                        buffer->print("buf += %d*sizeof(int32_t);\n", (int)elem->array_suffix->size);
                     }
             } else {
                 assert(elem->type == TYPE_STRING);
@@ -245,8 +245,8 @@ void CPrinter::print_net(ast_struct *st)
                     buffer->print("}\n");
                 } else {
                     buffer->print("memcpy(%s, buf, %d*sizeof(%s));\n",
-                        elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
-                    buffer->print("buf += %lu*sizeof(%s);\n", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        elem->name, (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                    buffer->print("buf += %d*sizeof(%s);\n", (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
                 }
             } else if (struct_type(elem, sym)) {
                 auto *inner_st = sym->find_struct(elem->custom_name);
@@ -263,8 +263,8 @@ void CPrinter::print_net(ast_struct *st)
                         buffer->print("}\n");
                     } else {
                         buffer->print("memcpy(%s, buf, %d*%s[0].encode_net_size());\n",
-                            elem->name, elem->array_suffix->size, elem->name);
-                        buffer->print("buf += %lu*%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
+                            elem->name, (int)elem->array_suffix->size, elem->name);
+                        buffer->print("buf += %d*%s[0].encode_net_size();\n", (int)elem->array_suffix->size, elem->name);
                     }
                 } else {
                     if (elem->is_dynamic_array) {
@@ -273,7 +273,7 @@ void CPrinter::print_net(ast_struct *st)
                         buffer->print("%s.resize(%s_count);\n", elem->name, elem->name);
                         buffer->print("for(uint32_t i=0; i<%s_count; i++) {\n", elem->name );
                     } else { // No need to decode the number of elements on the static array case, we know them already
-                        buffer->print("for(uint32_t i=0; i<%lu; i++) {\n", elem->array_suffix->size );
+                        buffer->print("for(uint32_t i=0; i<%d; i++) {\n", (int)elem->array_suffix->size );
                     }
                     buffer->increase_ident();
                     buffer->print("%s[i].decode_net(buf, buf_size);\n", elem->name );
@@ -294,8 +294,8 @@ void CPrinter::print_net(ast_struct *st)
                     buffer->print("}\n");
                 } else {
                     buffer->print("memcpy(%s, buf, %d*sizeof(int32_t));\n",
-                        elem->name, elem->array_suffix->size);
-                    buffer->print("buf += %lu*sizeof(int32_t);\n", elem->array_suffix->size, elem->name);
+                        elem->name, (int)elem->array_suffix->size);
+                    buffer->print("buf += %d*sizeof(int32_t);\n", (int)elem->array_suffix->size, elem->name);
                 }
             } else {
                 assert(elem->type == TYPE_STRING);
@@ -306,7 +306,7 @@ void CPrinter::print_net(ast_struct *st)
                     buffer->print("%s.resize(%s_count);\n", elem->name, elem->name);
                     buffer->print("for(uint32_t i=0; i<%s_count; i++) {\n", elem->name );
                 } else {
-                    buffer->print("for(uint32_t i=0; i<%lu; i++) {\n", elem->array_suffix->size );
+                    buffer->print("for(uint32_t i=0; i<%d; i++) {\n", (int)elem->array_suffix->size );
                 }
                 buffer->increase_ident();
                 buffer->print("uint32_t %s_length = *(uint32_t *)buf;\n", elem->name );
@@ -413,7 +413,7 @@ void CPrinter::print(ast_struct *st)
                         buffer->print("ret_size += sizeof(uint32_t); // Encode the length of %s\n", 
                             elem->name);
                     } else {
-                        buffer->print_no(" %lu;\n", elem->array_suffix->size);
+                        buffer->print_no(" %d;\n", (int)elem->array_suffix->size);
                     }
                 } else if (struct_type(elem, sym)) {
                     // check if custom is simple or not
@@ -423,7 +423,7 @@ void CPrinter::print(ast_struct *st)
                         if (elem->is_dynamic_array) {
                             buffer->print_no(" %s.size();\n", elem->name);
                         } else {
-                            buffer->print_no(" %lu;\n", elem->array_suffix->size);
+                            buffer->print_no(" %d;\n", (int)elem->array_suffix->size);
                         }
                     } else {
                         // We have to compute the size one by one...
@@ -477,8 +477,8 @@ void CPrinter::print(ast_struct *st)
                         buffer->print("buf += %s.size()*sizeof(%s);\n", elem->name, ElementTypeToStr[elem->type]);
                     } else {
                         buffer->print("memcpy(buf, %s, %d*sizeof(%s));\n", 
-                            elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
-                        buffer->print("buf += %lu*sizeof(%s);\n", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                            elem->name, (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        buffer->print("buf += %d*sizeof(%s);\n", (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
                     }
                 } else if (struct_type(elem, sym)) {
                     auto *inner_st = sym->find_struct(elem->custom_name);
@@ -491,8 +491,8 @@ void CPrinter::print(ast_struct *st)
                             buffer->print("buf += %s.size()*%s[0].encode_size();\n", elem->name, elem->name);
                         } else {
                             buffer->print("memcpy(buf, %s, %d*%s[0].encode_size());\n",
-                                elem->name, elem->array_suffix->size, elem->name);
-                            buffer->print("buf += %lu*%s[0].encode_size();\n", elem->array_suffix->size, elem->name);
+                                elem->name, (int)elem->array_suffix->size, elem->name);
+                            buffer->print("buf += %d*%s[0].encode_size();\n", (int)elem->array_suffix->size, elem->name);
                         }
                     } else {
                         if (elem->is_dynamic_array) {
@@ -515,8 +515,8 @@ void CPrinter::print(ast_struct *st)
                             buffer->print("buf += %s.size()*sizeof(int32_t);\n", elem->name);
                         } else {
                             buffer->print("memcpy(buf, %s, %d*sizeof(int32_t));\n",
-                                elem->name, elem->array_suffix->size);
-                            buffer->print("buf += %lu*sizeof(int32_t);\n", elem->array_suffix->size);
+                                elem->name, (int)elem->array_suffix->size);
+                            buffer->print("buf += %d*sizeof(int32_t);\n", (int)elem->array_suffix->size);
                         }
                 } else {
                     assert(elem->type == TYPE_STRING);
@@ -585,8 +585,8 @@ void CPrinter::print(ast_struct *st)
                         buffer->print("}\n");
                     } else {
                         buffer->print("memcpy(%s, buf, %d*sizeof(%s));\n", 
-                            elem->name, elem->array_suffix->size, ElementTypeToStr[elem->type]);
-                        buffer->print("buf += %lu*sizeof(%s);\n", elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                            elem->name, (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
+                        buffer->print("buf += %d*sizeof(%s);\n", (int)elem->array_suffix->size, ElementTypeToStr[elem->type]);
                     }
                 } else if (struct_type(elem, sym)) {
                     auto *inner_st = sym->find_struct(elem->custom_name);
@@ -603,8 +603,8 @@ void CPrinter::print(ast_struct *st)
                             buffer->print("}\n");
                         } else {
                             buffer->print("memcpy(%s, buf, %d*%s[0].encode_size());\n", 
-                                elem->name, elem->array_suffix->size, elem->name);
-                            buffer->print("buf += %lu*%s[0].encode_size();\n", elem->array_suffix->size, elem->name);
+                                elem->name, (int)elem->array_suffix->size, elem->name);
+                            buffer->print("buf += %d*%s[0].encode_size();\n", (int)elem->array_suffix->size, elem->name);
                         }
                     } else {
                         if (elem->is_dynamic_array) {
@@ -613,7 +613,7 @@ void CPrinter::print(ast_struct *st)
                             buffer->print("%s.resize(%s_count);\n", elem->name, elem->name);
                             buffer->print("for(uint32_t i=0; i<%s_count; i++) {\n", elem->name );
                         } else { // No need to decode the number of elements on the static array case, we know them already
-                            buffer->print("for(uint32_t i=0; i<%lu; i++) {\n", elem->array_suffix->size );
+                            buffer->print("for(uint32_t i=0; i<%d; i++) {\n", (int)elem->array_suffix->size );
                         }
                         buffer->increase_ident();
                         buffer->print("%s[i].decode(buf, buf_size);\n", elem->name );
@@ -634,8 +634,8 @@ void CPrinter::print(ast_struct *st)
                         buffer->print("}\n");
                     } else {
                         buffer->print("memcpy(%s, buf, %d*sizeof(int32_t));\n", 
-                            elem->name, elem->array_suffix->size);
-                        buffer->print("buf += %lu*sizeof(int32_t);\n", elem->array_suffix->size, elem->name);
+                            elem->name, (int)elem->array_suffix->size);
+                        buffer->print("buf += %d*sizeof(int32_t);\n", (int)elem->array_suffix->size, elem->name);
                     }                
                 } else {
                     assert(elem->type == TYPE_STRING);
@@ -646,7 +646,7 @@ void CPrinter::print(ast_struct *st)
                         buffer->print("%s.resize(%s_count);\n", elem->name, elem->name);
                         buffer->print("for(uint32_t i=0; i<%s_count; i++) {\n", elem->name );
                     } else {
-                        buffer->print("for(uint32_t i=0; i<%lu; i++) {\n", elem->array_suffix->size );
+                        buffer->print("for(uint32_t i=0; i<%d; i++) {\n", (int)elem->array_suffix->size );
                     }
                     buffer->increase_ident();
                     buffer->print("uint32_t %s_length = *(uint32_t *)buf;\n", elem->name );
