@@ -5,6 +5,7 @@
 #include "SymbolTable.h"
 #include "AstPrinter.h"
 #include "CPrinter.h"
+#include <inttypes.h>
 
 void checkParsing(const char *filename)
 {
@@ -70,9 +71,9 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
     return true;
 }
 
-unsigned long hash(const unsigned char *str)
+u64 hash(const unsigned char *str)
 {
-    unsigned long hash = 5381;
+    u64 hash = 5381;
     int c;
 
     while ((c = *str++))
@@ -97,7 +98,7 @@ bool compute_hash(ast_struct *st, SymbolTable *symtable)
             assert(inner_st);
             bool bret = compute_hash(inner_st, symtable);
             if (!bret) return false;
-            buf.print("%lX ", inner_st->hash_value);
+            buf.print("%" PRIX64 " ", inner_st->hash_value);
         } else {
             printer.print_ast(&buf, elem);
         }
