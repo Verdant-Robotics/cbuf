@@ -31,6 +31,21 @@ void AstPrinter::print_elem(ast_element *elem)
 
     if (elem->custom_name) {
         buffer->print("%s ", elem->custom_name);
+        if (sym) {
+            auto *struc = sym->find_struct(elem->custom_name);
+            if (struc && ! printed_types.find(struc) ) {
+                // Mark the struct as printed
+                // Print the struct we saw
+                // Append it to our buffer
+
+            }
+            auto *elem = sym->find_enum(elem->custom_name);
+            if (elem && ! printed_types.find(elem)) {
+                // Mark the enum as printed
+                // Print the enum we saw
+                // Append it to our buffer
+            }
+        }
     } else {
         buffer->print("%s ", ElementTypeToStr[elem->type]);
     }
