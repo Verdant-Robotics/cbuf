@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <map>
 
 class cbuf_ostream
 {
@@ -15,7 +16,7 @@ public:
   void close()
   {
     if (stream != -1) {
-      close(stream);
+      ::close(stream);
     }
     stream = -1;
   }
@@ -28,7 +29,7 @@ public:
 
   bool open_socket(const char *ip, int port)
   {
-
+    return false;
   }
 
   template <class cbuf_struct>
@@ -41,5 +42,7 @@ public:
     char* ptr = member->encode();
     write(stream, ptr, member->encode_size());
     member->free_encode(ptr);
+
+    return true;
   }
 };

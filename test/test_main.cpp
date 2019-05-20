@@ -3,10 +3,15 @@
 #include "image.h"
 #include "assert.h"
 
+#include "cbuf_stream.h"
+
 void set_data(messages::image &img, unsigned seed);
 void set_data(messages::complex_thing &th, unsigned seed);
 bool compare(const messages::image &a, const messages::image &b);
 bool compare(const messages::complex_thing &a, const messages::complex_thing &b);
+
+void test_encode_decode();
+void test_serialize();
 
 void ensure(bool check, const char *str)
 {
@@ -16,6 +21,29 @@ void ensure(bool check, const char *str)
 }
 
 int main(int argc, char **argv)
+{
+    test_encode_decode();
+
+    test_serialize();
+
+    return 0;
+}
+
+void test_serialize()
+{
+    messages::image img;
+    cbuf_ostream cos;
+    bool ret;
+    set_data(img, 13);
+
+    ret = cos.open_file("test_file.bin");
+    ensure(ret, "Open ostream");
+    ret = cos.serialize(&img);
+    ensure(ret, "serialize image");
+
+}
+
+void test_encode_decode()
 {
     messages::image img, *pimg;
     messages::complex_thing th, th2;
@@ -56,9 +84,9 @@ int main(int argc, char **argv)
     ret = compare(th, th2);
     ensure(ret, "Compare image before and after encoding");
 
-    printf("Test completed successfully");
-    return 0;
+    printf("Test encode/decode completed successfully");
 }
+
 
 void set_data(messages::image &img, unsigned seed)
 {

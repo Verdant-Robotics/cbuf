@@ -13,7 +13,7 @@ static const char * ElementTypeToStr[] = {
     "int64_t",
     "float",
     "double",
-    "std::string",
+    "string",
     "bool"
 };
 
@@ -28,26 +28,20 @@ AstPrinter::~AstPrinter()
 void AstPrinter::print_elem(ast_element *elem)
 {
     ast_array_definition *ar = elem->array_suffix;
-    bool close_array = false;
 
-    if (ar && ar->size == 0 && elem->is_dynamic_array) {
-        buffer->print("std::vector< ");
-        close_array = true;
-    }
     if (elem->custom_name) {
         buffer->print("%s ", elem->custom_name);
     } else {
         buffer->print("%s ", ElementTypeToStr[elem->type]);
     }
-    if (close_array) {
-        buffer->print("> ");
-    }
-    buffer->print("%s", elem->name);
+    buffer->print_no("%s", elem->name);
+
     while(ar != nullptr) {
-        if (ar->size != 0) buffer->print("[%ld]", ar->size);
+        if (ar->size != 0) buffer->print_no("[%ld]", ar->size);
+        else buffer->print_no("[]");
         ar = ar->next;
     }
-    buffer->print(";\n");
+    buffer->print_no(";\n");
 }
 
 void AstPrinter::print_struct(ast_struct *st)
@@ -58,7 +52,7 @@ void AstPrinter::print_struct(ast_struct *st)
         print_elem(elem);
     }
     buffer->decrease_ident();
-    buffer->print("}\n\n", "");
+    buffer->print("}\n", "");
 }
 
 void AstPrinter::print_channel(ast_channel *cn)

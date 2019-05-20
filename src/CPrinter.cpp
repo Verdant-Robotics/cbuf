@@ -1,6 +1,7 @@
 #include "CPrinter.h"
 #include <stdio.h>
 #include <inttypes.h>
+#include "AstPrinter.h"
 
 static const char * ElementTypeToStr[] = {
     "uint8_t",
@@ -685,6 +686,10 @@ void CPrinter::print(ast_struct *st)
         print_net(st);
     }
 
+    AstPrinter astPrinter;
+    StringBuffer buf;
+    astPrinter.print_ast(&buf, st);
+    buffer->print("static constexpr const char * cbuf_string = R\"CBUF_CODE(\n%s)CBUF_CODE\";\n\n", buf.get_buffer());
     buffer->decrease_ident();
     buffer->print("};\n\n");
 }
