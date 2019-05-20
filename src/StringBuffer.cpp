@@ -107,3 +107,15 @@ void StringBuffer::reset()
     ident = 0;
     rem_size = buf_size;
 }
+
+void StringBuffer::prepend(const StringBuffer *buf)
+{
+    size_t prefix_size = buf->buf_size - buf->rem_size;
+    // Make enough space for the new buffer
+    realloc_buffer(prefix_size);
+
+    // Move the old data
+    memmove(buffer+prefix_size, buffer, prefix_size);
+
+    memcpy(buffer, buf->buffer, prefix_size);
+}

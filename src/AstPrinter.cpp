@@ -87,13 +87,18 @@ void AstPrinter::print_ast(StringBuffer *buf, ast_global *ast)
 void AstPrinter::print_ast(StringBuffer *buf, ast_struct *ast)
 {
     buffer = buf;
+    printed_types.clear();
+
     print_struct(ast);
     buffer = nullptr;
+    printed_types.clear();
 }
 
 void AstPrinter::print_ast(StringBuffer *buf, ast_element *elem)
 {
     buffer = buf;
+    printed_types.clear();
     print_elem(elem);
     buffer = nullptr;
+    printed_types.clear();
 }

@@ -2,10 +2,13 @@
 
 #include "ast.h"
 #include "StringBuffer.h"
+#include <map>
 
 class AstPrinter
 {
     StringBuffer *buffer;
+    std::map<void *, int> printed_types;
+
     void print_elem(ast_element *elem);
     void print_struct(ast_struct *st);
     void print_channel(ast_channel *cn);
