@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <map>
+#include <metadata.h>
 
 class cbuf_ostream
 {
@@ -36,6 +37,16 @@ public:
   bool serialize(cbuf_struct * member)
   {
     // check if we have serialized this type before or not.
+    if (!dictionary.count(member->hash())) {
+      cbufmsg::metadata mdata;
+      mdata.msg_meta = member->cbuf_string;
+      mdata.msg_hash = member->hash();
+      mdata.msg_name = member->TYPE_STRING;
+      char *ptr = mdata.encode();
+      write(stream, ptr, mdata.encode_size());
+      mdata.free_encode(ptr);
+      dictionary[member->hash()] = member->TYPE_STRING;
+    }
     // If not, serialize its metadata
 
     // Serialize the data of the member itself

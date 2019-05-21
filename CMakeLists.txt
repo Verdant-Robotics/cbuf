@@ -19,12 +19,22 @@ set( CBUF_SRCS
 add_executable( cbuf ${CBUF_SRCS} )
 target_include_directories(cbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
+include(BuildCbuf)
+build_cbuf( stream/metadata.cbuf )
+
+add_custom_target( generate_cbuf_meta DEPENDS
+  ${CMAKE_CURRENT_BINARY_DIR}/stream/metadata.h
+  )
+
 if (NOT TARGET cbuf_lib)
     add_library( cbuf_lib INTERFACE )
     add_library( cbuf_lib::cbuf_lib ALIAS cbuf_lib )
+    add_dependencies( cbuf_lib generate_cbuf_meta )
     target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+    target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/stream )
 endif()
 
 if (${CBUF_ENABLE_TESTS})
     add_subdirectory( test )
 endif()
+
