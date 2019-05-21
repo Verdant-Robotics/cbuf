@@ -688,6 +688,7 @@ void CPrinter::print(ast_struct *st)
 
     AstPrinter astPrinter;
     StringBuffer buf;
+    astPrinter.setSymbolTable(sym);
     astPrinter.print_ast(&buf, st);
     buffer->print("static constexpr const char * cbuf_string = R\"CBUF_CODE(\n%s)CBUF_CODE\";\n\n", buf.get_buffer());
     buffer->decrease_ident();

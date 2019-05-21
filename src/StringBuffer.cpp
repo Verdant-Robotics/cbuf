@@ -115,7 +115,9 @@ void StringBuffer::prepend(const StringBuffer *buf)
     realloc_buffer(prefix_size);
 
     // Move the old data
-    memmove(buffer+prefix_size, buffer, prefix_size);
+    memmove(buffer+prefix_size, buffer, (buf_size-rem_size));
 
     memcpy(buffer, buf->buffer, prefix_size);
+    end += prefix_size;
+    rem_size -= prefix_size;
 }

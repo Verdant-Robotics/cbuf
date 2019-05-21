@@ -33,17 +33,33 @@ void AstPrinter::print_elem(ast_element *elem)
         buffer->print("%s ", elem->custom_name);
         if (sym) {
             auto *struc = sym->find_struct(elem->custom_name);
-            if (struc && ! printed_types.find(struc) ) {
+            if (struc && !printed_types.count(struc) ) {
                 // Mark the struct as printed
+                printed_types[struc] = 1;
                 // Print the struct we saw
+                StringBuffer new_buf;
+                StringBuffer *old_buf;
+                old_buf = buffer;
+                buffer = &new_buf;
+                print_struct(struc);
+                buffer = old_buf;
                 // Append it to our buffer
+                buffer->prepend(&new_buf);
 
             }
-            auto *elem = sym->find_enum(elem->custom_name);
-            if (elem && ! printed_types.find(elem)) {
+            auto *enm = sym->find_enum(elem->custom_name);
+            if (enm && !printed_types.count(enm)) {
                 // Mark the enum as printed
+                printed_types[enm] = 1;
                 // Print the enum we saw
+                StringBuffer new_buf;
+                StringBuffer *old_buf;
+                old_buf = buffer;
+                buffer = &new_buf;
+                print_enum(enm);
+                buffer = old_buf;
                 // Append it to our buffer
+                buffer->prepend(&new_buf);
             }
         }
     } else {
@@ -59,9 +75,20 @@ void AstPrinter::print_elem(ast_element *elem)
     buffer->print_no(";\n");
 }
 
+void AstPrinter::print_enum(ast_enum *enm)
+{
+    buffer->print("enum %s{\n", enm->name);
+    buffer->increase_ident();
+    for(auto* el: enm->elements) {
+        buffer->print("%s,\n", el);
+    }
+    buffer->decrease_ident();
+    buffer->print("}\n");
+}
+
 void AstPrinter::print_struct(ast_struct *st)
 {
-    buffer->print("struct %s {\n", "", st->name);
+    buffer->print("struct %s {\n", st->name);
     buffer->increase_ident();
     for(auto *elem: st->elements) {
         print_elem(elem);
