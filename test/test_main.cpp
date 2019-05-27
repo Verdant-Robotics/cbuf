@@ -31,16 +31,28 @@ int main(int argc, char **argv)
 
 void test_serialize()
 {
-    messages::image img;
-    cbuf_ostream cos;
+    messages::image img, img2;
     bool ret;
     set_data(img, 13);
 
-    ret = cos.open_file("test_file.bin");
-    ensure(ret, "Open ostream");
-    ret = cos.serialize(&img);
-    ensure(ret, "serialize image");
+    {
+      cbuf_ostream cos;
+      ret = cos.open_file("test_file.bin");
+      ensure(ret, "Open ostream");
+      ret = cos.serialize(&img);
+      ensure(ret, "serialize image");
+    }
 
+    {
+      cbuf_istream cis;
+      ret = cis.open_file("test_file.bin");
+      ensure(ret, "Open istream");
+      ret = cis.deserialize(&img2);
+      ensure(ret, "deserialize image");
+    }
+
+    ret = compare(img, img2);
+    ensure(ret, "compare images");
 }
 
 void test_encode_decode()

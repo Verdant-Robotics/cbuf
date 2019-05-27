@@ -7,6 +7,7 @@
 #include <map>
 #include <metadata.h>
 #include <error.h>
+#include "cbuf_preamble.h"
 
 class cbuf_ostream
 {
@@ -69,7 +70,7 @@ class cbuf_istream
 {
   std::map<uint64_t, std::string> dictionary;
   int stream = -1;
-  unsigned char *memmap_ptr = nulltpr;
+  unsigned char *memmap_ptr = nullptr;
   unsigned char *ptr = nullptr;
   size_t rem_size = 0;
   size_t filesize = 0;
@@ -117,13 +118,27 @@ public:
   template <class cbuf_struct>
   bool deserialize(cbuf_struct * member)
   {
+    bool ret;
 
+    if (empty()) return false;
+    auto hash = get_next_hash();
+    auto nsize = get_next_size();
 
-    // Serialize the data of the member itself
-    char* ptr = member->encode();
-    write(stream, ptr, member->encode_size());
-    member->free_encode(ptr);
+    if (hash == cbufmsg::metadata::TYPE_HASH ) {
+      cbufmsg::metadata mdata;
+      ret = mdata.decode((char *)ptr, rem_size);
+      if (!ret) return false;
+      ptr += nsize;
+      rem_size -= nsize;
+      dictionary[mdata.msg_hash] = mdata.msg_name;
 
+      return deserialize(member);
+    }
+
+    ret = member->decode((char *)ptr, rem_size);
+    if (!ret) return false;
+    ptr += nsize;
+    rem_size -= nsize;
     return true;
   }
 
@@ -135,8 +150,14 @@ public:
 
   uint64_t get_next_hash()
   {
-    uint64_t hash;
-    return hash;
+    cbuf_preamble *pre = (cbuf_preamble *)ptr;
+    return pre->hash;
+  }
+
+  uint32_t get_next_size()
+  {
+    cbuf_preamble *pre = (cbuf_preamble *)ptr;
+    return pre->size;
   }
 
   // Are there more objects on the stream?
