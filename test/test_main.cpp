@@ -84,7 +84,7 @@ void test_encode_decode()
     ret = compare(th, th2);
     ensure(ret, "Compare image before and after encoding");
 
-    printf("Test encode/decode completed successfully");
+    printf("Test encode/decode completed successfully\n");
 }
 
 
