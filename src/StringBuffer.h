@@ -23,4 +23,5 @@ public:
     void decrease_ident() {ident -= 4;}
     int get_ident() {return ident;}
     void set_ident(int i) {ident = i;}
+    void prepend(const StringBuffer *buf);
 };

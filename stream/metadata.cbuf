@@ -1,0 +1,10 @@
+namespace cbufmsg
+{
+    // Metadata used to be able to recreate cbuf messages
+    struct metadata
+    {
+        u64    msg_hash;
+        string msg_name;
+        string msg_meta;
+    }
+}

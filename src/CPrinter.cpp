@@ -1,6 +1,7 @@
 #include "CPrinter.h"
 #include <stdio.h>
 #include <inttypes.h>
+#include "AstPrinter.h"
 
 static const char * ElementTypeToStr[] = {
     "uint8_t",
@@ -358,7 +359,7 @@ void CPrinter::print(ast_struct *st)
 
     buffer->print("/// This is here to ensure hash is always available, just in case.\n");
     buffer->print("static const uint64_t TYPE_HASH = 0x%" PRIX64 ";\n", st->hash_value);
-    buffer->print("static uint64_t hash() { return TYPE_HASH; }\n");
+    buffer->print("uint64_t hash() { return TYPE_HASH; }\n");
     buffer->print("static constexpr const char* TYPE_STRING = \"%s\";\n", st->name);
     
     buffer->print("\n");
@@ -370,6 +371,7 @@ void CPrinter::print(ast_struct *st)
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("return sizeof(%s);\n", st->name); buffer->decrease_ident();
         buffer->print("}\n\n");
+        buffer->print("void free_encode(char *p) {}\n\n");
         buffer->print("bool encode(char *buf, unsigned int buf_size)\n");
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("if (buf_size < sizeof(%s)) return false;\n", st->name);
@@ -377,9 +379,9 @@ void CPrinter::print(ast_struct *st)
         buffer->print("return true;\n"); buffer->decrease_ident();
         buffer->print("}\n\n");
         buffer->print("// This variant allows for no copy when writing to disk.\n");
-        buffer->print("const char *encode()\n");
+        buffer->print("char *encode()\n");
         buffer->print("{\n"); buffer->increase_ident();
-        buffer->print("return (const char *)this;\n"); buffer->decrease_ident();
+        buffer->print("return (char *)this;\n"); buffer->decrease_ident();
         buffer->print("}\n\n");
         buffer->print("bool decode(char *buf, unsigned int buf_size)\n");
         buffer->print("{\n"); buffer->increase_ident();
@@ -456,6 +458,11 @@ void CPrinter::print(ast_struct *st)
             }
         }
         buffer->print("return ret_size;\n"); buffer->decrease_ident();
+        buffer->print("}\n\n");
+
+        buffer->print("void free_encode(char *p)\n");
+        buffer->print("{\n"); buffer->increase_ident();
+        buffer->print("free(p);\n"); buffer->decrease_ident();
         buffer->print("}\n\n");
 
         buffer->print("bool encode(char *buf, unsigned int buf_size)\n");
@@ -555,7 +562,7 @@ void CPrinter::print(ast_struct *st)
         buffer->print("return true;\n"); buffer->decrease_ident();
         buffer->print("}\n\n");
 
-        buffer->print("const char *encode()\n");
+        buffer->print("char *encode()\n");
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("preamble.size = encode_size();\n");
         buffer->print("char *buf = (char *)malloc(preamble.size);\n");
@@ -679,6 +686,11 @@ void CPrinter::print(ast_struct *st)
         print_net(st);
     }
 
+    AstPrinter astPrinter;
+    StringBuffer buf;
+    astPrinter.setSymbolTable(sym);
+    astPrinter.print_ast(&buf, st);
+    buffer->print("static constexpr const char * cbuf_string = R\"CBUF_CODE(\n%s)CBUF_CODE\";\n\n", buf.get_buffer());
     buffer->decrease_ident();
     buffer->print("};\n\n");
 }
