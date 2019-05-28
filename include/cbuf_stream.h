@@ -75,6 +75,40 @@ class cbuf_istream
   size_t rem_size = 0;
   size_t filesize = 0;
 
+  uint64_t __get_next_hash()
+  {
+    cbuf_preamble *pre = (cbuf_preamble *)ptr;
+    return pre->hash;
+  }
+
+  uint32_t __get_next_size()
+  {
+    cbuf_preamble *pre = (cbuf_preamble *)ptr;
+    return pre->size;
+  }
+
+
+  /// Try to consume metadata packets, not exposed to clients
+  /// Return true if a packet was consumed, false otherwise
+  bool consume_internal()
+  {
+      bool ret;
+      auto hash = __get_next_hash();
+      auto nsize = __get_next_size();
+
+      if (hash == cbufmsg::metadata::TYPE_HASH ) {
+        cbufmsg::metadata mdata;
+        ret = mdata.decode((char *)ptr, rem_size);
+        if (!ret) return false;
+        ptr += nsize;
+        rem_size -= nsize;
+        dictionary[mdata.msg_hash] = mdata.msg_name;
+
+        return true;
+      }
+      return false;
+  }
+
 public:
   cbuf_istream() {}
   ~cbuf_istream() { close(); }
@@ -121,20 +155,11 @@ public:
     bool ret;
 
     if (empty()) return false;
-    auto hash = get_next_hash();
-    auto nsize = get_next_size();
-
-    if (hash == cbufmsg::metadata::TYPE_HASH ) {
-      cbufmsg::metadata mdata;
-      ret = mdata.decode((char *)ptr, rem_size);
-      if (!ret) return false;
-      ptr += nsize;
-      rem_size -= nsize;
-      dictionary[mdata.msg_hash] = mdata.msg_name;
-
-      return deserialize(member);
+    if (consume_internal()) {
+        return deserialize(member);
     }
 
+    auto nsize = get_next_size();
     ret = member->decode((char *)ptr, rem_size);
     if (!ret) return false;
     ptr += nsize;
@@ -142,20 +167,28 @@ public:
     return true;
   }
 
-  std::string get_next_string()
+  std::string get_string_for_hash(uint64_t hash)
   {
-    std::string str;
-    return str;
+    if (dictionary.count(hash) > 0) {
+        return dictionary[hash];
+    }
+    return std::string();
   }
 
   uint64_t get_next_hash()
   {
+    if (consume_internal()) {
+      return get_next_hash();
+    }
     cbuf_preamble *pre = (cbuf_preamble *)ptr;
     return pre->hash;
   }
 
   uint32_t get_next_size()
   {
+    if (consume_internal()) {
+      return get_next_size();
+    }
     cbuf_preamble *pre = (cbuf_preamble *)ptr;
     return pre->size;
   }
@@ -164,5 +197,18 @@ public:
   bool empty()
   {
     return rem_size == 0;
+  }
+
+  bool skip_message()
+  {
+      if (empty()) return false;
+      if (consume_internal()) {
+          return skip_message();
+      }
+
+      auto nsize = get_next_size();
+      ptr += nsize;
+      rem_size -= nsize;
+      return true;
   }
 };
