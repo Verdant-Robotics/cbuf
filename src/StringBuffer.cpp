@@ -31,10 +31,18 @@ void StringBuffer::realloc_buffer(int nsize)
         // reallocate buffer
         unsigned int new_size = buf_size*4; // fast growth
         int end_offset = buf_size - rem_size;
+        assert(end[0] == 0);
+        assert(end == buffer + end_offset);
+        assert(buffer[end_offset] == 0);
         buffer = (char *)realloc(buffer, new_size);
         // memcpy(new_buffer, buffer, buf_size);
         end = buffer + end_offset;
         end[0] = 0;
+
+        assert(end[0] == 0);
+        assert(end == buffer + end_offset);
+        assert(buffer[end_offset] == 0);
+
         rem_size = new_size - end_offset;
         buf_size = new_size;
         // free(buffer);
@@ -47,7 +55,7 @@ void StringBuffer::print(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     if (ident != 0) {
-        realloc_buffer(ident);
+        realloc_buffer(ident+1);
         for(int i = 0; i<ident; i++) *end++ = ' ';
         rem_size -= ident;
     }
@@ -60,7 +68,7 @@ void StringBuffer::print(const char *fmt, ...)
     va_end(vacount);
 
     assert(nsize >= 0);
-    realloc_buffer(nsize);
+    realloc_buffer(nsize+1);
 
     end += vsnprintf(end, rem_size -1, fmt, args);
     rem_size -= nsize;
