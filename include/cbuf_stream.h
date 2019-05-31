@@ -93,6 +93,8 @@ class cbuf_istream
   bool consume_internal()
   {
       bool ret;
+      if (empty()) return false;
+
       auto hash = __get_next_hash();
       auto nsize = __get_next_size();
 
@@ -196,7 +198,7 @@ public:
   // Are there more objects on the stream?
   bool empty()
   {
-    return rem_size == 0;
+    return rem_size <= 0;
   }
 
   bool skip_message()
