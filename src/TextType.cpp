@@ -5,7 +5,7 @@
 // @TODO: protect this array with a mutex
 static Array<TextType> string_intern;
 
-TextType CreateTextType(PoolAllocator * p, const char * src)
+TextType CreateTextType(Allocator * p, const char * src)
 {
     u64 size = strlen(src) + 1;
 

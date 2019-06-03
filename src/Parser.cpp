@@ -353,7 +353,70 @@ ast_namespace* Parser::parseNamespace()
     return sp;
 }
 
-ast_global * Parser::Parse(const char *filename, PoolAllocator *pool)
+ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *pool)
+{
+    Lexer local_lex;
+    this->lex = &local_lex;
+    this->pool = pool;
+
+    lex->setPoolAllocator(pool);
+
+    if (errorString == nullptr) {
+        errorString = errorStringBuffer;
+        errorString[0] = 0;
+    }
+
+    if (!lex->loadString(buffer, buf_size)) {
+        errorString += sprintf(errorString, "Error: String Buffer could not be opened to be processed\n");
+        return nullptr;
+    }
+
+    ast_global *top_ast = new (pool) ast_global;
+    success = true;
+    top_level_ast = top_ast;
+
+    lex->parseFile();
+    while (!lex->checkToken(TK_LAST_TOKEN)) {
+        Token t;
+        lex->lookaheadToken(t);
+        if (t.type == TK_NAMESPACE) {
+            auto *sp = parseNamespace();
+            if (!success) {
+                return nullptr;
+            }
+            top_ast->spaces.push_back(sp);
+        } else if (t.type == TK_STRUCT) {
+            auto st = parseStruct();
+            if (!success) {
+                return nullptr;
+            }
+            top_ast->global_space.structs.push_back(st);
+            st->space = &top_ast->global_space;
+        } else if (t.type == TK_CHANNEL) {
+            auto *cn = parseChannel();
+            if (!success) {
+                return nullptr;
+            }
+            top_ast->channels.push_back(cn);
+        } else if (t.type == TK_ENUM) {
+            auto *en = parseEnum();
+            if (!success) {
+                return nullptr;
+            }
+            top_ast->enums.push_back(en);
+            en->space = &top_ast->global_space;
+        } else {
+            Error("Unknown token [%s], at the top level only structs and namespaces are allowed\n", TokenTypeToStr(t.type));
+            return nullptr;
+        }
+    }
+
+    this->lex = nullptr;
+    top_level_ast = nullptr;
+    return top_ast;
+}
+
+ast_global * Parser::Parse(const char *filename, Allocator *pool)
 {
     Lexer local_lex;
     this->lex = &local_lex;

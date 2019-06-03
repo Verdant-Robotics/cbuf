@@ -2,7 +2,7 @@
 
 #include "Token.h"
 #include "FileData.h"
-#include "PoolAllocator.h"
+#include "Allocator.h"
 #include "Array.h"
 
 class Lexer
@@ -18,12 +18,12 @@ class Lexer
     void getNextTokenInternal(Token &tok);
     bool parseStringToken(char *input, Token &tok);
     void parseNumber(Token &tok, char c);
-    PoolAllocator *pool;
+    Allocator *pool;
     TextType filename;
 public:
 	Lexer();
 	~Lexer();
-    void setPoolAllocator(PoolAllocator *p) { pool = p; }
+    void setPoolAllocator(Allocator *p) { pool = p; }
 	bool openFile(const char *filename);
     bool loadString(const char *str, u64 size);
     void parseFile();

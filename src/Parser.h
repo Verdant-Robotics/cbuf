@@ -5,7 +5,7 @@
 
 class Parser
 {
-    PoolAllocator *pool;
+    Allocator *pool;
     char errorStringBuffer[4096];
     char *errorString = nullptr;
     ast_namespace *current_scope = nullptr;
@@ -19,7 +19,9 @@ public:
     Lexer *lex;
     bool success;
 
-    ast_global * Parse(const char *filename, PoolAllocator *pool);
+    ast_global * Parse(const char *filename, Allocator *pool);
+    ast_global * ParseBuffer(const char *buffer, u64 buf_size, Allocator *pool);
+
     ast_enum* parseEnum();
     ast_struct* parseStruct();
     ast_channel* parseChannel();

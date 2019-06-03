@@ -1,7 +1,7 @@
 #pragma once
-#include "PoolAllocator.h"
+#include "Allocator.h"
 
 typedef char * TextType;
 
-TextType CreateTextType(PoolAllocator *p, const char *src);
+TextType CreateTextType(Allocator *p, const char *src);
 

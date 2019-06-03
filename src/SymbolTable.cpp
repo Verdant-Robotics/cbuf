@@ -21,7 +21,7 @@ bool SymbolTable::add_enum(ast_enum *en)
     return false;
 }
 
-bool SymbolTable::find_symbol(TextType name) const
+bool SymbolTable::find_symbol(const TextType name) const
 {
     for(auto *st: ar) {
         if (!strcmp(name, st->name)) {
@@ -36,7 +36,7 @@ bool SymbolTable::find_symbol(TextType name) const
     return false;
 }
 
-ast_struct* SymbolTable::find_struct(TextType name) const
+ast_struct* SymbolTable::find_struct(const TextType name) const
 {
     for(auto *st: ar) {
         if (!strcmp(name, st->name)) {
@@ -46,7 +46,7 @@ ast_struct* SymbolTable::find_struct(TextType name) const
     return nullptr;
 }
 
-ast_enum* SymbolTable::find_enum(TextType name) const
+ast_enum* SymbolTable::find_enum(const TextType name) const
 {
     for(auto *en: enar) {
         if (!strcmp(name, en->name)) {

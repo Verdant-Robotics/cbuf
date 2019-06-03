@@ -12,7 +12,7 @@ endif()
 
 set( CBUF_SRCS 
     src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp
-    src/Parser.cpp src/PoolAllocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
+    src/Parser.cpp src/Allocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
     src/TextType.cpp src/Token.cpp src/cbuf.cpp
 )
 
