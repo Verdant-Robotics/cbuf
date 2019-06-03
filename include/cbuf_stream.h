@@ -69,6 +69,7 @@ public:
 class cbuf_istream
 {
   std::map<uint64_t, std::string> dictionary;
+  std::map<uint64_t, std::string> metadictionary;
   int stream = -1;
   unsigned char *memmap_ptr = nullptr;
   unsigned char *ptr = nullptr;
@@ -105,6 +106,7 @@ class cbuf_istream
         ptr += nsize;
         rem_size -= nsize;
         dictionary[mdata.msg_hash] = mdata.msg_name;
+        metadictionary[mdata.msg_hash] = mdata.msg_meta;
 
         return true;
       }
@@ -173,6 +175,14 @@ public:
   {
     if (dictionary.count(hash) > 0) {
         return dictionary[hash];
+    }
+    return std::string();
+  }
+
+  std::string get_meta_string_for_hash(uint64_t hash)
+  {
+    if (metadictionary.count(hash) > 0) {
+        return metadictionary[hash];
     }
     return std::string();
   }
