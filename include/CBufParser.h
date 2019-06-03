@@ -16,6 +16,8 @@ class CBufParser
   SymbolTable *sym = nullptr;
 
   bool PrintInternal(const char* st_name);
+  bool PrintCSVInternal(const char* st_name);
+  std::string main_struct_name;
 
 public:
   CBufParser();
@@ -28,5 +30,5 @@ public:
   // Returns the number of bytes consumed
   unsigned int Print(const char* st_name, unsigned char *buffer, size_t buf_size);
   // Print only the data, no header information, and CSV friendly
-  unsigned int PrintCSV(unsigned char *buffer, size_t buf_size);
+  unsigned int PrintCSV(const char* st_name, unsigned char *buffer, size_t buf_size);
 };

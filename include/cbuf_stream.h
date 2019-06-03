@@ -223,4 +223,10 @@ public:
       rem_size -= nsize;
       return true;
   }
+
+  unsigned char * get_current_ptr()
+  {
+    return ptr;
+  }
+
 };
