@@ -92,7 +92,7 @@ void StringBuffer::print_no(const char *fmt, ...)
     va_end(vacount);
 
     assert(nsize >= 0);
-    realloc_buffer(nsize);
+    realloc_buffer(nsize+1);
 
     end += vsnprintf(end, rem_size -1, fmt, args);
     rem_size -= nsize;
@@ -120,7 +120,7 @@ void StringBuffer::prepend(const StringBuffer *buf)
 {
     size_t prefix_size = buf->buf_size - buf->rem_size;
     // Make enough space for the new buffer
-    realloc_buffer(prefix_size);
+    realloc_buffer(prefix_size+1);
 
     // Move the old data
     memmove(buffer+prefix_size, buffer, (buf_size-rem_size));
