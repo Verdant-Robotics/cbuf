@@ -10,14 +10,21 @@ if (${CBUF_ENABLE_TESTS})
     enable_testing()
 endif()
 
-set( CBUF_SRCS 
-    src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp
-    src/Parser.cpp src/Allocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
-    src/TextType.cpp src/Token.cpp src/cbuf.cpp
+set( CBUF_PARSE_SRCS
+  src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp
+  src/Parser.cpp src/Allocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
+  src/TextType.cpp src/Token.cpp src/CBufParser.cpp
 )
+
+set( CBUF_SRCS src/cbuf.cpp )
+
+add_library( cbuf_parse STATIC ${CBUF_PARSE_SRCS} )
+target_include_directories(cbuf_parse PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
+
 
 add_executable( cbuf ${CBUF_SRCS} )
 target_include_directories(cbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
+target_link_libraries(cbuf PRIVATE cbuf_parse )
 
 include(BuildCbuf)
 build_cbuf( stream/metadata.cbuf )
