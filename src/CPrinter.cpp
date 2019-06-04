@@ -341,7 +341,11 @@ void CPrinter::print_net(ast_struct *st)
 
 void CPrinter::print(ast_struct *st)
 {
+  if (st->simple) {
+    buffer->print("struct __attribute__ ((__packed__)) %s {\n", st->name);
+  } else {
     buffer->print("struct %s {\n", st->name);
+  }
     buffer->increase_ident();
 
     buffer->print("// This has to be the first member\n");
