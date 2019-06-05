@@ -274,6 +274,7 @@ bool CBufParser::PrintCSVHeader()
     }
     if (elem_idx +1 < st->elements.size()) printf(",");
   }
+  printf("\n");
   return true;
 }
 
