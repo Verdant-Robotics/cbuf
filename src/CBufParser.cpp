@@ -28,13 +28,13 @@ void print<s64>(s64 elem)
 template<>
 void print<f64>(f64 elem)
 {
-    printf("%f", elem);
+    printf("%.10f", elem);
 }
 
 template<>
 void print<f32>(f32 elem)
 {
-    printf("%f", elem);
+    printf("%.10f", elem);
 }
 
 template<class T>

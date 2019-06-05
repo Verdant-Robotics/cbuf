@@ -4,8 +4,8 @@
 #include <stddef.h>
 
 struct ast_global;
-struct PoolAllocator;
-struct SymbolTable;
+class PoolAllocator;
+class SymbolTable;
 
 class CBufParser
 {
