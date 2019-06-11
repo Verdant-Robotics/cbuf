@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <inttypes.h>
 
 #if defined(_WINDOWS) || defined(_WIN32)
 #define PLATFORM_WINDOWS
@@ -18,17 +19,15 @@ typedef int                s32;
 #if defined(PLATFORM_WINDOWS)
 typedef long long          s64;
 #else
-typedef long               s64;
+typedef int64_t            s64;
 #endif
 
 typedef unsigned char      u8;
 typedef unsigned short     u16;
 typedef unsigned int       u32;
 #if defined(PLATFORM_WINDOWS)
-#define U64FMT             "ll"
 typedef unsigned long long u64;
 #else
-#define U64FMT              "l"
 typedef uint64_t           u64;
 #endif
 typedef float              f32;
