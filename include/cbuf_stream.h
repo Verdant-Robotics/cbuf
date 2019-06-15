@@ -14,6 +14,14 @@ class cbuf_ostream
   std::map<uint64_t, std::string> dictionary;
   int stream = -1;
 
+  double now() const
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    double now = double(ts.tv_sec) + double(ts.tv_nsec)/1e9;
+    return now;
+  }
+
 public:
   cbuf_ostream() {}
   ~cbuf_ostream() { close(); }
@@ -47,6 +55,7 @@ public:
     if (!dictionary.count(member->hash())) {
       // If not, serialize its metadata
       cbufmsg::metadata mdata;
+      mdata.preamble.packet_timest = now();
       mdata.msg_meta = member->cbuf_string;
       mdata.msg_hash = member->hash();
       mdata.msg_name = member->TYPE_STRING;
@@ -56,6 +65,7 @@ public:
       dictionary[member->hash()] = member->TYPE_STRING;
     }
 
+    member->preamble.packet_timest = now();
     // Serialize the data of the member itself
     char* ptr = member->encode();
     write(stream, ptr, member->encode_size());

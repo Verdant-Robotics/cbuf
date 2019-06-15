@@ -68,7 +68,7 @@ void CPrinter::print_net(ast_struct *st)
 {
     buffer->print("size_t encode_net_size()\n");
     buffer->print("{\n"); buffer->increase_ident();
-    buffer->print("size_t ret_size = sizeof(uint64_t) + sizeof(uint32_t); //sizeof(preamble)\n");
+    buffer->print("size_t ret_size = sizeof(uint64_t)*3; //sizeof(preamble)\n");
     for(auto *elem: st->elements) {
         if (elem->array_suffix) {
             if (simple_type(elem->type)) {
@@ -129,10 +129,14 @@ void CPrinter::print_net(ast_struct *st)
     buffer->print("{\n"); buffer->increase_ident();
     buffer->print("preamble.size = encode_net_size();\n");
     buffer->print("if (buf_size < preamble.size) return false;\n");
-    buffer->print("*(uint64_t *)buf = preamble.hash;\n");
-    buffer->print("buf += sizeof(uint64_t);\n");
+    buffer->print("*(uint32_t *)buf = CBUF_MAGIC;\n");
+    buffer->print("buf += sizeof(uint32_t);\n");
     buffer->print("*(uint32_t *)buf = preamble.size;\n");
     buffer->print("buf += sizeof(uint32_t);\n");
+    buffer->print("*(uint64_t *)buf = preamble.hash;\n");
+    buffer->print("buf += sizeof(uint64_t);\n");
+    buffer->print("*(double *)buf = preamble.packet_timest;\n");
+    buffer->print("buf += sizeof(double);\n");
     for(auto *elem: st->elements) {
         if (elem->array_suffix) {
             if (simple_type(elem->type)) {
@@ -224,13 +228,19 @@ void CPrinter::print_net(ast_struct *st)
 
     buffer->print("bool decode_net(char *buf, unsigned int buf_size)\n");
     buffer->print("{\n"); buffer->increase_ident();
-    buffer->print("uint64_t buf_hash = *(uint64_t *)buf;\n");
-    buffer->print("if (buf_hash != TYPE_HASH) return false;\n");
-    buffer->print("buf += sizeof(uint64_t);\n");
+    buffer->print("uint32_t magic = *(uint32_t *)buf;\n");
+    buffer->print("if (magic != CBUF_MAGIC) return false;\n");
+    buffer->print("preamble.magic = magic;\n");
+    buffer->print("buf += sizeof(uint32_t);\n");
     buffer->print("uint32_t dec_size = *(uint32_t *)buf;\n");
     buffer->print("if (dec_size > buf_size) return false;\n");
     buffer->print("preamble.size = dec_size;\n");
     buffer->print("buf += sizeof(uint32_t);\n");
+    buffer->print("uint64_t buf_hash = *(uint64_t *)buf;\n");
+    buffer->print("if (buf_hash != TYPE_HASH) return false;\n");
+    buffer->print("buf += sizeof(uint64_t);\n");
+    buffer->print("preamble.packet_timest = *(double *)buf;\n");
+    buffer->print("buf += sizeof(double);\n");
 
     for(auto *elem: st->elements) {
         if (elem->array_suffix) {
@@ -350,11 +360,13 @@ void CPrinter::print(ast_struct *st)
 
     buffer->print("// This has to be the first member\n");
     buffer->print("cbuf_preamble preamble = {\n"); buffer->increase_ident();
-    buffer->print("0x%" PRIX64 ",\n", st->hash_value);
+    buffer->print("CBUF_MAGIC,\n");
     if (st->simple)
         buffer->print("sizeof(%s),\n", st->name);
     else
         buffer->print("0,\n");
+    buffer->print("0x%" PRIX64 ",\n", st->hash_value);
+    buffer->print("0.0,\n");
     buffer->print("};\n"); buffer->decrease_ident();
 
     for (auto *elem : st->elements) {
@@ -473,10 +485,14 @@ void CPrinter::print(ast_struct *st)
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("preamble.size = encode_size();\n");
         buffer->print("if (buf_size < preamble.size) return false;\n");
-        buffer->print("*(uint64_t *)buf = preamble.hash;\n");
-        buffer->print("buf += sizeof(uint64_t);\n");
+        buffer->print("*(uint32_t *)buf = preamble.magic;\n");
+        buffer->print("buf += sizeof(uint32_t);\n");
         buffer->print("*(uint32_t *)buf = preamble.size;\n");
         buffer->print("buf += sizeof(uint32_t);\n");
+        buffer->print("*(uint64_t *)buf = preamble.hash;\n");
+        buffer->print("buf += sizeof(uint64_t);\n");
+        buffer->print("*(double *)buf = preamble.packet_timest;\n");
+        buffer->print("buf += sizeof(double);\n");
         for(auto *elem: st->elements) {
             if (elem->array_suffix) {
                 if (simple_type(elem->type)) {
@@ -577,10 +593,12 @@ void CPrinter::print(ast_struct *st)
         buffer->print("bool decode(char *buf, unsigned int buf_size)\n");
         buffer->print("{\n"); buffer->increase_ident();
         buffer->print("cbuf_preamble *pre = (cbuf_preamble *)buf;\n");
+        buffer->print("if (pre->magic != CBUF_MAGIC) return false;\n");
         buffer->print("if (pre->hash != TYPE_HASH) return false;\n");
         buffer->print("if (pre->size > buf_size) return false;\n");
         buffer->print("preamble.size = pre->size;\n");
-        buffer->print("buf += sizeof(uint64_t) + sizeof(uint32_t);\n");
+        buffer->print("preamble.packet_timest = pre->packet_timest;\n");
+        buffer->print("buf += sizeof(uint64_t)*3; // size of the preamble\n");
 
         for(auto *elem: st->elements) {
             if (elem->array_suffix) {
