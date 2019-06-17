@@ -174,6 +174,6 @@ bool compare(const messages::complex_thing &a, const messages::complex_thing &b)
         ensure(a.hard_dynamic[i] == b.hard_dynamic[i], "Comparing hard_dynamic element");
     }
 
-    printf("VRM test completed successfully, no errors\n");
+    printf("CBuf test completed successfully, no errors\n");
     return true;
 }
