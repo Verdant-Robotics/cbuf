@@ -7,6 +7,7 @@
 #include <map>
 #include <metadata.h>
 #include <error.h>
+#include <assert.h>
 #include "cbuf_preamble.h"
 
 class ULogger;
