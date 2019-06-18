@@ -9,6 +9,8 @@
 #include <error.h>
 #include "cbuf_preamble.h"
 
+class ULogger;
+
 class cbuf_ostream
 {
   std::map<uint64_t, std::string> dictionary;
@@ -20,6 +22,23 @@ class cbuf_ostream
     clock_gettime(CLOCK_REALTIME, &ts);
     double now = double(ts.tv_sec) + double(ts.tv_nsec)/1e9;
     return now;
+  }
+
+  friend class ULogger;
+
+  void serialize_metadata(const char *msg_meta, uint64_t hash, const char *msg_name)
+  {
+    assert(dictionary.count(hash) == 0);
+
+    cbufmsg::metadata mdata;
+    mdata.preamble.packet_timest = now();
+    mdata.msg_meta = member->cbuf_string;
+    mdata.msg_hash = member->hash();
+    mdata.msg_name = member->TYPE_STRING;
+    char *ptr = mdata.encode();
+    write(stream, ptr, mdata.encode_size());
+    mdata.free_encode(ptr);
+    dictionary[member->hash()] = member->TYPE_STRING;
   }
 
 public:
@@ -54,15 +73,7 @@ public:
     // check if we have serialized this type before or not.
     if (!dictionary.count(member->hash())) {
       // If not, serialize its metadata
-      cbufmsg::metadata mdata;
-      mdata.preamble.packet_timest = now();
-      mdata.msg_meta = member->cbuf_string;
-      mdata.msg_hash = member->hash();
-      mdata.msg_name = member->TYPE_STRING;
-      char *ptr = mdata.encode();
-      write(stream, ptr, mdata.encode_size());
-      mdata.free_encode(ptr);
-      dictionary[member->hash()] = member->TYPE_STRING;
+      serialize_metadata(member->cbuf_string, member->hash(), member->TYPE_STRING);
     }
 
     member->preamble.packet_timest = now();
