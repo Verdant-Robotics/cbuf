@@ -32,13 +32,13 @@ class cbuf_ostream
 
     cbufmsg::metadata mdata;
     mdata.preamble.packet_timest = now();
-    mdata.msg_meta = member->cbuf_string;
-    mdata.msg_hash = member->hash();
-    mdata.msg_name = member->TYPE_STRING;
+    mdata.msg_meta = msg_meta;
+    mdata.msg_hash = hash;
+    mdata.msg_name = msg_name;
     char *ptr = mdata.encode();
     write(stream, ptr, mdata.encode_size());
     mdata.free_encode(ptr);
-    dictionary[member->hash()] = member->TYPE_STRING;
+    dictionary[hash] = msg_name;
   }
 
 public:
