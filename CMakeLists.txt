@@ -36,7 +36,7 @@ if (NOT TARGET cbuf_lib)
     target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
 endif()
 
-add_subdirectory( ulogger )
+add_subdirectory( ulog )
 
 if (${CBUF_ENABLE_TESTS})
     add_subdirectory( test )
