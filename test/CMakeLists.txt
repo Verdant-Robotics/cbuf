@@ -11,7 +11,7 @@ add_custom_target( generate_cbuf_test DEPENDS
 include_directories( ${CMAKE_CURRENT_BINARY_DIR}/samples )
 add_executable( test_main test_main.cpp )
 add_dependencies( test_main generate_cbuf_test )
-target_link_libraries( test_main cbuf_lib )
+target_link_libraries( test_main cbuf_lib ulogger )
 
 add_test(
     NAME test_main
