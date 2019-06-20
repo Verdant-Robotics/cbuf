@@ -39,7 +39,7 @@ void print<f32>(f32 elem)
 }
 
 template<class T>
-void process_element(const ast_element* elem, u8* &bin_buffer, u64 &buf_size)
+void process_element(const ast_element* elem, u8* &bin_buffer, size_t &buf_size)
 {
     T val;
     if (elem->array_suffix) {
@@ -80,7 +80,7 @@ void process_element(const ast_element* elem, u8* &bin_buffer, u64 &buf_size)
 }
 
 template<class T>
-void process_element_csv(const ast_element* elem, u8* &bin_buffer, u64 &buf_size)
+void process_element_csv(const ast_element* elem, u8* &bin_buffer, size_t &buf_size)
 {
     T val;
     if (elem->array_suffix) {
@@ -117,7 +117,7 @@ void process_element_csv(const ast_element* elem, u8* &bin_buffer, u64 &buf_size
 }
 
 
-void process_element_string(const ast_element* elem, u8* &bin_buffer, u64 &buf_size)
+void process_element_string(const ast_element* elem, u8* &bin_buffer, size_t &buf_size)
 {
     char *str;
     if (elem->array_suffix) {
@@ -140,7 +140,7 @@ void process_element_string(const ast_element* elem, u8* &bin_buffer, u64 &buf_s
     delete[] str;
 }
 
-void process_element_string_csv(const ast_element* elem, u8* &bin_buffer, u64 &buf_size)
+void process_element_string_csv(const ast_element* elem, u8* &bin_buffer, size_t &buf_size)
 {
     char *str;
     if (elem->array_suffix) {
