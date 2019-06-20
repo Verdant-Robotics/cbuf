@@ -10,13 +10,6 @@ ULogger::~ULogger()
 {
 }
 
-/// Return the allocated memory to our pool
-void ULogger::freeBuffer(void *buffer)
-{
-  // For now, just a free
-  free(buffer);
-}
-
 void ULogger::fillFilename()
 {
   time_t rawtime;
@@ -32,16 +25,14 @@ void ULogger::fillFilename()
 // Process packet here:
 // Check the dictionary if needed for metadata
 // Write the packet otherwise
-void ULogger::processPacket(PacketQueue& pq)
+void ULogger::processPacket(void *data, int size, const char *metadata, const char *type_name )
 {
-  cbuf_preamble *pre = (cbuf_preamble *)pq.data;
+  cbuf_preamble *pre = (cbuf_preamble *)data;
   if (cos.dictionary.count(pre->hash) == 0) {
-      cos.serialize_metadata(pq.metadata, pre->hash, pq.type_name);
+      cos.serialize_metadata(metadata, pre->hash, type_name);
   }
 
-  write(cos.stream, pq.data, pq.size);
-
-  freeBuffer(pq.data);
+  write(cos.stream, data, size);
 }
 
 bool ULogger::initialize()
@@ -49,32 +40,29 @@ bool ULogger::initialize()
   loggerThread = new std::thread(
         [this]()
   {
+            uint8_t *buf = new uint8_t[5000];
+            uint32_t size = 0;
     while(logging) {
-      PacketQueue pq;
-      if (packetQueue.empty()) {
-        usleep(1000);
-        continue;
-      }
 
-      {
-        std::lock_guard<std::mutex> guard(mutexQueue);
-        pq = packetQueue.front();
-        packetQueue.pop();
-      }
+        const char *metadata;
+        const char *type_name;
 
-      processPacket(pq);
+        ringbuffer.consume(buf, size, &metadata, &type_name);
+
+
+      processPacket(buf, size, metadata, type_name);
     }
 
     // Continue processing the queue until it is empty
     {
-      std::lock_guard<std::mutex> guard(mutexQueue);
-      while(!packetQueue.empty()) {
-        PacketQueue pq = packetQueue.front();
-        processPacket(pq);
-        packetQueue.pop();
+      while(ringbuffer.size() > 0) {
+          const char *metadata;
+          const char *type_name;
+          ringbuffer.consume(buf, size, &metadata, &type_name);
+          processPacket(buf, size, metadata, type_name);
       }
     }
-
+    delete [] buf;
     cos.close();
   });
   return true;
@@ -124,15 +112,3 @@ void ULogger::endLogging()
     loggerThread = nullptr;
 }
 
-/// Functions to get memory and queue packets for logging
-void *ULogger::getBuffer(unsigned int size)
-{
-  // change me:
-  return malloc(size);
-}
-
-void ULogger::queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name)
-{
-  std::lock_guard<std::mutex> guard(mutexQueue);
-  packetQueue.emplace( metadata, type_name, data, size );
-}
