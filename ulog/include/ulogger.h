@@ -68,4 +68,9 @@ public:
     return true;
   }
 
+  template <class cbuf_struct>
+  bool serialize(cbuf_struct& member)
+  {
+    return serialize(&member);
+  }
 };
