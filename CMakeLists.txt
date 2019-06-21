@@ -20,9 +20,11 @@ set( CBUF_PARSE_SRCS
   src/TextType.cpp src/Token.cpp src/CBufParser.cpp
 )
 
+set( CBUF_HDRS include/cbuf_preamble.h include/vstring.h include/CBufParser.h )
+
 set( CBUF_SRCS src/cbuf.cpp )
 
-add_library( cbuf_parse STATIC ${CBUF_PARSE_SRCS} )
+add_library( cbuf_parse STATIC ${CBUF_PARSE_SRCS} ${CBUF_HDRS} )
 target_include_directories(cbuf_parse PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
 
 

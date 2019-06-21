@@ -36,6 +36,7 @@ struct ReservedKeyword {
     { "null",     TK_NULL },
     { "void",     TK_VOID },
     { "string",   TK_STRING_KEYWORD },
+    { "short_string", TK_SHORT_STRING_KEYWORD },
     { "int",      TK_S32 },
     { "u8",       TK_U8 },
     { "u16",      TK_U16 },

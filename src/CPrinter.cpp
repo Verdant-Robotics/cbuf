@@ -3,6 +3,8 @@
 #include <inttypes.h>
 #include "AstPrinter.h"
 
+static const int short_string_size = 16;
+
 static const char * ElementTypeToStr[] = {
     "uint8_t",
     "uint16_t",
@@ -15,6 +17,7 @@ static const char * ElementTypeToStr[] = {
     "float",
     "double",
     "std::string",
+    "VString<15>",
     "bool"
 };
 
@@ -847,6 +850,7 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
     buffer->print("#include <string.h> // memcpy\n");
     buffer->print("#include <vector>   // std::vector\n");
     buffer->print("#include <string>   // std::string\n");
+    buffer->print("#include \"vstring.h\"\n");
     buffer->print("\n");
 
     for(auto *en: top_ast->global_space.enums) {

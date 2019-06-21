@@ -34,10 +34,13 @@ void test_serialize()
     messages::image img, img2;
     bool ret;
     set_data(img, 13);
+    const char *test_filename = "test_file.ulog";
+
+    remove(test_filename);
 
     {
       cbuf_ostream cos;
-      ret = cos.open_file("test_file.bin");
+      ret = cos.open_file(test_filename);
       ensure(ret, "Open ostream");
       ret = cos.serialize(&img);
       ensure(ret, "serialize image");
@@ -45,7 +48,7 @@ void test_serialize()
 
     {
       cbuf_istream cis;
-      ret = cis.open_file("test_file.bin");
+      ret = cis.open_file(test_filename);
       ensure(ret, "Open istream");
       ret = cis.deserialize(&img2);
       ensure(ret, "deserialize image");
