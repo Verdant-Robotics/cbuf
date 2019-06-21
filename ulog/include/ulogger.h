@@ -1,30 +1,33 @@
 #pragma once
 
-#include <queue>
 #include <mutex>
+#include <queue>
 #include <thread>
 
+#include "../ringbuffer.h"
 #include "cbuf_preamble.h"
 #include "cbuf_stream.h"
-#include "../ringbuffer.h"
 
 class ULogger {
   ULogger();
   ~ULogger();
 
-  RingBuffer<1024*1024*10> ringbuffer;
+  RingBuffer<1024 * 1024 * 10> ringbuffer;
   std::thread* loggerThread = nullptr;
 
   bool initialize();
   cbuf_ostream cos;
   bool logging = true;
 
-  void processPacket(void *data, int size, const char *metadata, const char *type_name );
+  void processPacket(void* data,
+                     int size,
+                     const char* metadata,
+                     const char* type_name);
 
   char filename_buffer[128];
   void fillFilename();
 
-public:
+ public:
   // No public constructors, this is a singleton
   static ULogger* getULogger();
 
@@ -32,28 +35,32 @@ public:
   void endLogging();
 
   /// Functions to get memory and queue packets for logging
-  void queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name);
+  void queuePacket(void* data,
+                   unsigned int size,
+                   const char* metadata,
+                   const char* type_name);
 
-  /// This function will serialize to a buffer and then queue for the thread to write to disk
+  /// This function will serialize to a buffer and then queue for the thread to
+  /// write to disk
   template <class cbuf_struct>
-  bool serialize(cbuf_struct * member)
-  {
-    if (!logging) return false;
+  bool serialize(cbuf_struct* member) {
+    if (!logging)
+      return false;
 
     auto stsize = (unsigned int)member->encode_size();
-    uint64_t buffer_handle = ringbuffer.alloc(stsize, member->cbuf_string, member->TYPE_STRING);
+    uint64_t buffer_handle =
+        ringbuffer.alloc(stsize, member->cbuf_string, member->TYPE_STRING);
 
-    if (!member->encode( ringbuffer.handleToAddress(buffer_handle), stsize)) {
-        ringbuffer.populate(buffer_handle);
-        return false;
+    if (!member->encode(ringbuffer.handleToAddress(buffer_handle), stsize)) {
+      ringbuffer.populate(buffer_handle);
+      return false;
     }
     ringbuffer.populate(buffer_handle);
     return true;
   }
 
   template <class cbuf_struct>
-  bool serialize(cbuf_struct& member)
-  {
+  bool serialize(cbuf_struct& member) {
     return serialize(&member);
   }
 };

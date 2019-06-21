@@ -2,67 +2,67 @@
 #include <mutex>
 #include "vlog.h"
 
-ULogger::ULogger()
-{
-}
+ULogger::ULogger() {}
 
-ULogger::~ULogger()
-{
-}
+ULogger::~ULogger() {}
 
-void ULogger::fillFilename()
-{
+void ULogger::fillFilename() {
   time_t rawtime;
-  struct tm *info;
-  time( &rawtime );
-  info = localtime( &rawtime );
+  struct tm* info;
+  time(&rawtime);
+  info = localtime(&rawtime);
 
-  sprintf(filename_buffer, "vdnt.%d.%d.%d.%d.%d.ulog",
-          info->tm_year, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min);
+  sprintf(filename_buffer, "vdnt.%d.%d.%d.%d.%d.ulog", info->tm_year,
+          info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min);
 }
-
 
 // Process packet here:
 // Check the dictionary if needed for metadata
 // Write the packet otherwise
-void ULogger::processPacket(void *data, int size, const char *metadata, const char *type_name )
-{
-  cbuf_preamble *pre = (cbuf_preamble *)data;
+void ULogger::processPacket(void* data,
+                            int size,
+                            const char* metadata,
+                            const char* type_name) {
+  cbuf_preamble* pre = (cbuf_preamble*)data;
   if (cos.dictionary.count(pre->hash) == 0) {
-      cos.serialize_metadata(metadata, pre->hash, type_name);
+    cos.serialize_metadata(metadata, pre->hash, type_name);
   }
 
   write(cos.stream, data, size);
 }
 
-bool ULogger::initialize()
-{
-  loggerThread = new std::thread(
-        [this]()
-  {
-            uint8_t *buf = new uint8_t[5000];
-            uint32_t size = 0;
-    while(logging) {
+bool ULogger::initialize() {
+  loggerThread = new std::thread([this]() {
+    while (logging) {
+      std::optional<RingBuffer<1024 * 1024 * 10>::Buffer> r =
+          ringbuffer.lastUnread();
 
-        const char *metadata;
-        const char *type_name;
+      if (!r) {
+        usleep(1000);
+        continue;
+      }
 
-        ringbuffer.consume(buf, size, &metadata, &type_name);
-
-
-      processPacket(buf, size, metadata, type_name);
+      if (r->size > 0) {
+        processPacket(r->loc, r->size, r->metadata, r->type_name);
+      }
+      ringbuffer.dequeue();
     }
 
     // Continue processing the queue until it is empty
-    {
-      while(ringbuffer.size() > 0) {
-          const char *metadata;
-          const char *type_name;
-          ringbuffer.consume(buf, size, &metadata, &type_name);
-          processPacket(buf, size, metadata, type_name);
+    while (ringbuffer.size() > 0) {
+      std::optional<RingBuffer<1024 * 1024 * 10>::Buffer> r =
+          ringbuffer.lastUnread();
+
+      if (!r) {
+        usleep(1000);
+        continue;
       }
+
+      if (r->size > 0) {
+        processPacket(r->loc, r->size, r->metadata, r->type_name);
+      }
+      ringbuffer.dequeue();
     }
-    delete [] buf;
     cos.close();
   });
   return true;
@@ -73,8 +73,7 @@ static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
 // No public constructors, this is a singleton
-ULogger* ULogger::getULogger()
-{
+ULogger* ULogger::getULogger() {
   if (!initialized) {
     std::lock_guard<std::mutex> guard(g_ulogger_mutex);
 
@@ -104,11 +103,9 @@ ULogger* ULogger::getULogger()
 }
 
 /// function to stop all logging, threads, and terminate the app
-void ULogger::endLogging()
-{
-    logging = false;
-    loggerThread->join();
-    delete loggerThread;
-    loggerThread = nullptr;
+void ULogger::endLogging() {
+  logging = false;
+  loggerThread->join();
+  delete loggerThread;
+  loggerThread = nullptr;
 }
-
