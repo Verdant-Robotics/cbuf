@@ -25,7 +25,7 @@ void ULogger::fillFilename()
   info = localtime( &rawtime );
 
   sprintf(filename_buffer, "vdnt.%d.%d.%d.%d.%d.ulog",
-          info->tm_year, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min);
+          info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min);
 }
 
 
