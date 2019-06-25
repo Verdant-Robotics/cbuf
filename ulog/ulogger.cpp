@@ -24,8 +24,8 @@ void ULogger::fillFilename()
   time( &rawtime );
   info = localtime( &rawtime );
 
-  sprintf(filename_buffer, "vdnt.%d.%d.%d.%d.%d.ulog",
-          info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min);
+  sprintf(filename_buffer, "vdnt.%d.%d.%d.%d.%d.%d.ulog",
+          info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 }
 
 
@@ -84,6 +84,11 @@ static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
+bool ULogger::isInitialized()
+{
+    return initialized;
+}
+
 // No public constructors, this is a singleton
 ULogger* ULogger::getULogger()
 {
@@ -122,6 +127,7 @@ void ULogger::endLogging()
     loggerThread->join();
     delete loggerThread;
     loggerThread = nullptr;
+    initialized = false;
 }
 
 /// Functions to get memory and queue packets for logging

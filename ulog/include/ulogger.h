@@ -38,6 +38,8 @@ class ULogger {
   void fillFilename();
 
 public:
+  static bool isInitialized();
+
   // No public constructors, this is a singleton
   static ULogger* getULogger();
 
@@ -47,6 +49,8 @@ public:
   /// Functions to get memory and queue packets for logging
   void *getBuffer(unsigned int size);
   void queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name);
+
+  const char* getFilename() { return filename_buffer; }
 
   /// This function will serialize to a buffer and then queue for the thread to write to disk
   template <class cbuf_struct>
