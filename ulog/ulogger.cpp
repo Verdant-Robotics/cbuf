@@ -1,6 +1,22 @@
 #include "ulogger.h"
 #include <mutex>
 #include "vlog.h"
+#include <unistd.h>
+#include <sys/stat.h>
+#include <linux/limits.h>
+#include <memory.h>
+
+// stat() check if directory exists
+static  
+bool directory_exists( const char* dirpath )
+{
+  struct stat status;
+  if( stat( dirpath, &status ) == 0 && S_ISDIR( status.st_mode ) ) {  
+    return true;
+  }
+  return false;
+}
+
 
 ULogger::ULogger()
 {
@@ -24,9 +40,26 @@ void ULogger::fillFilename()
   time( &rawtime );
   info = localtime( &rawtime );
 
-  sprintf(filename_buffer, "vdnt.%d.%d.%d.%d.%d.%d.ulog",
+  char buffer[PATH_MAX];
+  memset(buffer, 0, sizeof(buffer));
+  sprintf(buffer, "vdnt.%d.%d.%d.%d.%d.%d.ulog",
           info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
+
+  if( !outputdir.empty() ) {
+    filename = outputdir + "/" + buffer;
+  }
+  else {
+    filename = buffer;
+  }
 }
+
+void ULogger::setOutputDir(const char* outdir)
+{
+  if( directory_exists( outdir ) ) {
+    outputdir = outdir;
+  }
+}
+
 
 
 // Process packet here:
@@ -100,7 +133,7 @@ ULogger* ULogger::getULogger()
     g_ulogger->fillFilename();
 
     // Open the serialization file
-    bool bret = g_ulogger->cos.open_file(g_ulogger->filename_buffer);
+    bool bret = g_ulogger->cos.open_file(g_ulogger->filename.c_str());
     if (!bret) {
       vlog_fatal(VCAT_GENERAL, "Could not open the ulog file for logging");
       delete g_ulogger;

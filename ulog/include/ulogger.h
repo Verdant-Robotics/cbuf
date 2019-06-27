@@ -3,6 +3,7 @@
 #include <queue>
 #include <mutex>
 #include <thread>
+#include <string>
 
 #include "cbuf_preamble.h"
 #include "cbuf_stream.h"
@@ -34,7 +35,9 @@ class ULogger {
   void processPacket(PacketQueue& pq);
   void freeBuffer(void *buffer);
 
-  char filename_buffer[128];
+  std::string outputdir;
+  std::string filename;
+  
   void fillFilename();
 
 public:
@@ -50,7 +53,9 @@ public:
   void *getBuffer(unsigned int size);
   void queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name);
 
-  const char* getFilename() { return filename_buffer; }
+  void setOutputDir(const char* outputdir);
+
+  const char* getFilename() { return filename.c_str(); }
 
   /// This function will serialize to a buffer and then queue for the thread to write to disk
   template <class cbuf_struct>
