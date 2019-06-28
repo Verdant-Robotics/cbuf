@@ -3,7 +3,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
-#include "../ringbuffer.h"
+#include "ringbuffer.h"
 #include <string>
 #include <atomic>
 #include "cbuf_preamble.h"
