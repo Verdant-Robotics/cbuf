@@ -4,64 +4,70 @@
 #include <mutex>
 #include <thread>
 #include <string>
-
+#include <atomic>
 #include "cbuf_preamble.h"
 #include "cbuf_stream.h"
 
-class ULogger {
-  ULogger();
-  ~ULogger();
 
-  struct PacketQueue
+
+class ULogger {
+  ULogger() : quit_thread(false) { }
+  ~ULogger() = default;
+
+  struct Packet
   {
     const char *metadata = nullptr;
     const char *type_name = nullptr;
     void *data = nullptr;
     int size = 0;
 
-    PacketQueue(const char *md, const char *tn, void *dt, int sz) :
+    Packet(const char *md, const char *tn, void *dt, int sz) :
         metadata(md), type_name(tn), data(dt), size(sz) {}
-    PacketQueue() {}
+    Packet() {}
   };
 
-  std::queue<PacketQueue> packetQueue;
+  std::queue<Packet> packetQueue;
   std::mutex mutexQueue;
   std::thread* loggerThread = nullptr;
 
   bool initialize();
   cbuf_ostream cos;
-  bool logging = true;
+  bool quit_thread;
 
-  void processPacket(PacketQueue& pq);
-  void freeBuffer(void *buffer);
-
-  std::string outputdir;
-  std::string filename;
-  
   void fillFilename();
+  bool openFile();
+  void closeFile();
+
+  void processPacket(Packet& pq);
+
+  void *getBuffer(unsigned int size);
+  void freeBuffer(void *buffer);
+  
 
 public:
   static bool isInitialized();
+
+  void setOutputDir(const char* outputdir);
+  std::string getSessionToken();
+  std::string getSessionPath();
+  std::string getFilename();
 
   // No public constructors, this is a singleton
   static ULogger* getULogger();
 
   /// function to stop all logging, threads, and terminate the app
-  void endLogging();
+  static void endLogging();
 
-  /// Functions to get memory and queue packets for logging
-  void *getBuffer(unsigned int size);
+  /// Function to queue packets for file writing
   void queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name);
 
-  void setOutputDir(const char* outputdir);
-
-  const char* getFilename() { return filename.c_str(); }
 
   /// This function will serialize to a buffer and then queue for the thread to write to disk
   template <class cbuf_struct>
   bool serialize(cbuf_struct * member)
   {
-    if (!logging) return false;
+    if (quit_thread) 
+      return false;
 
     auto stsize = (unsigned int)member->encode_size();
     char *buffer = (char *)getBuffer(stsize);

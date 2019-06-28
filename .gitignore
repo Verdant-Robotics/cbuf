@@ -1,5 +1,6 @@
 bazel-*
 .vscode
+build
 bin/
 obj/
 test/bin

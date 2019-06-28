@@ -24,6 +24,8 @@ public:
 
   void close();
 
+  bool is_open() const { return stream != -1; }
+
   bool open_file(const char *fname);
 
   bool open_socket(const char *ip, int port);
