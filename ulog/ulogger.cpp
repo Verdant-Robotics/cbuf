@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <linux/limits.h>
 #include <memory.h>
+#include <experimental/filesystem> //#include <filesystem>
+
 
 // stat() check if directory exists
 static  
@@ -18,20 +20,65 @@ bool directory_exists( const char* dirpath )
 }
 
 
-ULogger::ULogger()
+
+static std::mutex g_file_mutex;
+static std::string outputdir;
+static std::string sessiontoken;
+static std::string filename;
+
+static std::mutex g_ulogger_mutex;
+static bool initialized = false;
+static ULogger* g_ulogger = nullptr;
+
+
+
+void ULogger::setOutputDir(const char* outdir)
 {
+  std::lock_guard<std::mutex> guard(g_file_mutex);
+  if( directory_exists( outdir ) ) {
+    outputdir = outdir;
+  }
 }
 
-ULogger::~ULogger()
+std::string ULogger::getSessionToken()
 {
+  // WIP: if and when the logdriving executable can stop recording and start the next one
+  // without re-starting the executable,  then use the executable's process ID as the session token.
+  // For now, just use the year_month_day  as the session.
+  if( sessiontoken.empty() ) {
+    time_t rawtime;
+    struct tm *info;
+    time( &rawtime );
+    info = localtime( &rawtime );
+
+    char buffer[PATH_MAX];
+    memset(buffer, 0, sizeof(buffer));
+    sprintf(buffer, "%d%d%d",
+            info->tm_year + 1900, info->tm_mon, info->tm_mday );
+    sessiontoken = buffer;
+  }
+  return sessiontoken;
 }
 
-/// Return the allocated memory to our pool
-void ULogger::freeBuffer(void *buffer)
+std::string ULogger::getSessionPath()
 {
-  // For now, just a free
-  free(buffer);
+  std::string result;
+  std::string sessiontok = getSessionToken();
+  if( !outputdir.empty() ) {
+    result = outputdir + "/" + sessiontok;
+  }
+  else {
+    result = sessiontok;
+  }
+  if( !std::experimental::filesystem::exists( result.c_str() ) ) {
+    if( !std::experimental::filesystem::create_directories( result.c_str() ) ) {
+      printf( "Error: output directory does not exist and could not create it %s \n", result.c_str() );
+    }
+  }
+
+  return result;    
 }
+
 
 void ULogger::fillFilename()
 {
@@ -45,19 +92,53 @@ void ULogger::fillFilename()
   sprintf(buffer, "vdnt.%d.%d.%d.%d.%d.%d.ulog",
           info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 
-  if( !outputdir.empty() ) {
-    filename = outputdir + "/" + buffer;
-  }
-  else {
-    filename = buffer;
-  }
+  filename = getSessionPath() + "/" + buffer;
 }
 
-void ULogger::setOutputDir(const char* outdir)
+// return a copy of the filename, not a reference 
+std::string ULogger::getFilename()
 {
-  if( directory_exists( outdir ) ) {
-    outputdir = outdir;
+  std::lock_guard<std::mutex> guard(g_file_mutex);
+  std::string result = filename;
+  return result;   
+}
+
+bool ULogger::openFile()
+{ 
+  std::lock_guard<std::mutex> guard(g_file_mutex);
+  fillFilename();
+ 
+  printf( "openFile %s\n", filename.c_str() );
+ 
+  // Open the serialization file
+  bool bret = cos.open_file(filename.c_str());
+  if (!bret) {
+    vlog_fatal(VCAT_GENERAL, "Could not open the ulog file for logging %s\n", filename.c_str() );
+    return false;  
   }
+  return true;
+}
+
+void ULogger::closeFile()
+{
+  std::lock_guard<std::mutex> guard(g_file_mutex);
+  cos.close();    
+}
+
+
+
+/// Return the allocated memory to our pool
+void ULogger::freeBuffer(void *buffer)
+{
+  // For now, just a free
+  free(buffer);
+}
+
+/// Functions to get memory and queue packets for logging
+void *ULogger::getBuffer(unsigned int size)
+{
+  // change me:
+  return malloc(size);
 }
 
 
@@ -65,16 +146,17 @@ void ULogger::setOutputDir(const char* outdir)
 // Process packet here:
 // Check the dictionary if needed for metadata
 // Write the packet otherwise
-void ULogger::processPacket(PacketQueue& pq)
+void ULogger::processPacket(Packet& pkt)
 {
-  cbuf_preamble *pre = (cbuf_preamble *)pq.data;
+  std::lock_guard<std::mutex> guard(g_file_mutex);
+  cbuf_preamble *pre = (cbuf_preamble *)pkt.data;
   if (cos.dictionary.count(pre->hash) == 0) {
-      cos.serialize_metadata(pq.metadata, pre->hash, pq.type_name);
+      cos.serialize_metadata(pkt.metadata, pre->hash, pkt.type_name);
   }
 
-  write(cos.stream, pq.data, pq.size);
+  write(cos.stream, pkt.data, pkt.size);
 
-  freeBuffer(pq.data);
+  freeBuffer(pkt.data);
 }
 
 bool ULogger::initialize()
@@ -82,40 +164,58 @@ bool ULogger::initialize()
   loggerThread = new std::thread(
         [this]()
   {
-    while(logging) {
-      PacketQueue pq;
-      if (packetQueue.empty()) {
+    printf( "ULogger::initialize  THREAD ENTER\n" );
+
+    while( !this->quit_thread ) {
+      Packet pkt;
+
+      bool empty = false;
+      {
+        std::lock_guard<std::mutex> guard(mutexQueue);
+        empty = packetQueue.empty();        
+      }
+
+      if (empty) {
         usleep(1000);
         continue;
       }
-
+      else
       {
         std::lock_guard<std::mutex> guard(mutexQueue);
-        pq = packetQueue.front();
+        pkt = packetQueue.front();
         packetQueue.pop();
       }
 
-      processPacket(pq);
+      if( !cos.is_open() ) {
+        printf( "ULogger::initialize  OPEN THE FILE\n" );
+        if( !openFile() ) {
+          return;
+        }
+      }
+
+      processPacket(pkt);
     }
 
+    printf( "ULogger::initialize  flush the queue\n" );
     // Continue processing the queue until it is empty
     {
       std::lock_guard<std::mutex> guard(mutexQueue);
       while(!packetQueue.empty()) {
-        PacketQueue pq = packetQueue.front();
-        processPacket(pq);
+        Packet pkt = packetQueue.front();
         packetQueue.pop();
+        processPacket(pkt);
       }
     }
 
-    cos.close();
+    printf( "ULogger::initialize  close the file\n" );
+    closeFile();
+    printf( "ULogger::initialize  THREAD EXIT\n" );
   });
   return true;
 }
 
-static std::mutex g_ulogger_mutex;
-static bool initialized = false;
-static ULogger* g_ulogger = nullptr;
+
+
 
 bool ULogger::isInitialized()
 {
@@ -125,30 +225,21 @@ bool ULogger::isInitialized()
 // No public constructors, this is a singleton
 ULogger* ULogger::getULogger()
 {
-  if (!initialized) {
+  if (!initialized) { 
     std::lock_guard<std::mutex> guard(g_ulogger_mutex);
+    if (!initialized) {    
+      g_ulogger = new ULogger();
+      g_ulogger->quit_thread = false;
 
-    g_ulogger = new ULogger();
+      bool bret = g_ulogger->initialize();
+      if (!bret) {
+        vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
+        delete g_ulogger;
+        return nullptr;
+      }
 
-    g_ulogger->fillFilename();
-
-    // Open the serialization file
-    bool bret = g_ulogger->cos.open_file(g_ulogger->filename.c_str());
-    if (!bret) {
-      vlog_fatal(VCAT_GENERAL, "Could not open the ulog file for logging");
-      delete g_ulogger;
-      return nullptr;
+      initialized = true;
     }
-
-    bret = g_ulogger->initialize();
-    if (!bret) {
-      vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
-      delete g_ulogger;
-      return nullptr;
-    }
-
-    // Do any extra initialization needed here
-    initialized = true;
   }
   return g_ulogger;
 }
@@ -156,18 +247,16 @@ ULogger* ULogger::getULogger()
 /// function to stop all logging, threads, and terminate the app
 void ULogger::endLogging()
 {
-    logging = false;
-    loggerThread->join();
-    delete loggerThread;
-    loggerThread = nullptr;
-    initialized = false;
-}
-
-/// Functions to get memory and queue packets for logging
-void *ULogger::getBuffer(unsigned int size)
-{
-  // change me:
-  return malloc(size);
+  if( g_ulogger == nullptr ) {
+    return;
+  }
+  g_ulogger->quit_thread = true;
+  g_ulogger->loggerThread->join();
+  delete g_ulogger->loggerThread;
+  g_ulogger->loggerThread = nullptr;
+  delete g_ulogger;
+  g_ulogger = nullptr;
+  initialized = false;
 }
 
 void ULogger::queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name)
