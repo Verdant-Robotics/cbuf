@@ -32,13 +32,14 @@ namespace messages
     // Prefer POD, they are much faster for serdes
     struct image 
     {
+        short_string sensor_name; // short string is a POD, fixed size string
         u32     rows;
         uint32_t  cols;
         s32   format; // opengl format
         s32   type;   // opengl type
         double  timestamp;
         u8   pixels[1024]; // raw data
-        MyFancyEnum fancy;
+        MyFancyEnum fancy;        
     }
 
     struct complex_thing

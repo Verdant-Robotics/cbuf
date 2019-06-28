@@ -18,6 +18,7 @@ enum ElementType
     TYPE_F32,
     TYPE_F64,
     TYPE_STRING,
+    TYPE_SHORT_STRING,
     TYPE_BOOL,
     TYPE_CUSTOM
 };

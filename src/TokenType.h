@@ -74,6 +74,7 @@ enum TOKEN_TYPE {
     TK_VOID,
     TK_BOOL,
     TK_STRING_KEYWORD,
+    TK_SHORT_STRING_KEYWORD,
     TK_U8,
     TK_U16,
     TK_U32,

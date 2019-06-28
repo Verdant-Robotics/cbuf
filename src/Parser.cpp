@@ -20,6 +20,7 @@ static bool isBuiltInType(TOKEN_TYPE t)
         || (t == TK_F32)
         || (t == TK_F64)
         || (t == TK_STRING_KEYWORD)
+        || (t == TK_SHORT_STRING_KEYWORD)
         || (t == TK_VOID);
 }
 
@@ -117,9 +118,13 @@ ast_element* Parser::parseElementDeclaration()
             break;
         case TK_STRING_KEYWORD:
             elem->type = TYPE_STRING;
-            break;
+            break;            
         case TK_BOOL:
             elem->type = TYPE_BOOL;
+            break;
+        case TK_SHORT_STRING_KEYWORD:
+            elem->type = TYPE_SHORT_STRING;
+            // TODO: Parse now the size of the string, optionally
             break;
         default:
             Error("Something unforeseen happened here");
@@ -127,7 +132,7 @@ ast_element* Parser::parseElementDeclaration()
         }
     }
 
-    // Now we parse the name, has to be an identifier. For future work, support pointers?
+    // Now we parse the name, has to be an identifier.
     lex->getNextToken(t);
     if (t.type != TK_IDENTIFIER) {
         Error("An element of a struct needs to have a name");
