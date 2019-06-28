@@ -55,7 +55,7 @@ public:
     uint64_t buffer_handle =
         ringbuffer.alloc(stsize, member->cbuf_string, member->TYPE_STRING);
 
-    if (!member->encode(ringbuffer.handleToAddress(buffer_handle), stsize)) {
+    if (!member->encode((char*)ringbuffer.handleToAddress(buffer_handle), stsize)) {
       ringbuffer.populate(buffer_handle);
       return false;
     }

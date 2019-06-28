@@ -90,9 +90,9 @@ class RingBuffer {
       Allocation a(size, m_write, AllocationType::Empty, allocationId++,
                    metadata, type_name);
       alloclock.lock();
-      allocations[a.id] = a;
+      allocations[a.id_] = a;
       alloclock.unlock();
-      m_sizeAllocated += a.size;
+      m_sizeAllocated += a.size_;
       m_write += size;
       uniquelock.unlock();
       return std::optional<Allocation>(a);
@@ -100,9 +100,9 @@ class RingBuffer {
       Allocation a(Size - m_write, m_write, AllocationType::Dummy,
                    allocationId++, nullptr, nullptr);
       alloclock.lock();
-      allocations[a.id] = a;
+      allocations[a.id_] = a;
       alloclock.unlock();
-      m_sizeAllocated += a.size;
+      m_sizeAllocated += a.size_;
       m_write = 0;
       uniquelock.unlock();
       return std::optional<Allocation>();
@@ -114,7 +114,7 @@ class RingBuffer {
     while (!(r = alloc_inner(size, metadata, type_name))) {
       usleep(100);
     }
-    return (*r).id;
+    return (*r).id_;
   }
 
   bool populate(uint64_t dst, uint8_t* src = nullptr) {
@@ -124,7 +124,7 @@ class RingBuffer {
 
     assert(a.type == AllocationType::Empty);
     if (src) {
-      std::copy(src, src + a.size, &m_buf[a.begin]);
+      std::copy(src, src + a.size_, &m_buf[a.begin_]);
     }
 
     alloclock.lock();
