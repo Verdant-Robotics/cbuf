@@ -43,12 +43,6 @@ public:
   /// function to stop all logging, threads, and terminate the app
   static void endLogging();
 
-  /// Functions to get memory and queue packets for logging
-  void queuePacket(void* data,
-                   unsigned int size,
-                   const char* metadata,
-                   const char* type_name);
-
   /// This function will serialize to a buffer and then queue for the thread to
   /// write to disk
   template <class cbuf_struct>
