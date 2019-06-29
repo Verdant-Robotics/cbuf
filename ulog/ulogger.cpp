@@ -137,8 +137,8 @@ void ULogger::closeFile()
 void ULogger::endLoggingThread()
 {
   quit_thread = true;
-  uint64_t buffer_handle = ringbuffer.alloc(0, nullptr, nullptr);
-  ringbuffer.populate(buffer_handle);
+  //uint64_t buffer_handle = ringbuffer.alloc(0, nullptr, nullptr);
+  //ringbuffer.populate(buffer_handle);
   loggerThread->join();
   delete loggerThread;
   loggerThread = nullptr;
@@ -147,6 +147,11 @@ void ULogger::endLoggingThread()
 bool ULogger::initialize() {
   loggerThread = new std::thread([this]() {
     while (!this->quit_thread) {
+      if (ringbuffer.size() == 0)
+      {
+        usleep(1000);
+        continue;
+      }
       std::optional<RingBuffer<1024 * 1024 * 10>::Buffer> r =
           ringbuffer.lastUnread();
 

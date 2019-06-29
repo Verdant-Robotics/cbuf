@@ -86,7 +86,7 @@ class RingBuffer {
       }
     });
 
-    if (m_write + size <= Size) {
+    if (size != 0 && m_write + size <= Size) {
       Allocation a(size, m_write, AllocationType::Empty, allocationId++,
                    metadata, type_name);
       alloclock.lock();
@@ -102,7 +102,8 @@ class RingBuffer {
       alloclock.lock();
       allocations[a.id_] = a;
       alloclock.unlock();
-      m_sizeAllocated += a.size_;
+      //hack for teardown
+      m_sizeAllocated += (a.size_ == 0?1:a.size_);
       m_write = 0;
       uniquelock.unlock();
       return std::optional<Allocation>();
