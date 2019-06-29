@@ -122,7 +122,7 @@ class RingBuffer {
     Allocation a = allocations[dst];
     alloclock.unlock();
 
-    assert(a.type == AllocationType::Empty);
+    assert(a.type_ == AllocationType::Empty);
     if (src) {
       std::copy(src, src + a.size_, &m_buf[a.begin_]);
     }
