@@ -134,6 +134,16 @@ void ULogger::closeFile()
   cos.close();    
 }
 
+void ULogger::endLoggingThread()
+{
+  quit_thread = true;
+  uint64_t buffer_handle = ringbuffer.alloc(0, nullptr, nullptr);
+  ringbuffer.populate(buffer_handle);
+  loggerThread->join();
+  delete loggerThread;
+  loggerThread = nullptr;
+}
+
 bool ULogger::initialize() {
   loggerThread = new std::thread([this]() {
     while (!this->quit_thread) {
@@ -215,10 +225,7 @@ void ULogger::endLogging()
   if( g_ulogger == nullptr ) {
     return;
   }
-  g_ulogger->quit_thread = true;
-  g_ulogger->loggerThread->join();
-  delete g_ulogger->loggerThread;
-  g_ulogger->loggerThread = nullptr;
+  g_ulogger->endLoggingThread();
   delete g_ulogger;
   g_ulogger = nullptr;
   initialized = false;

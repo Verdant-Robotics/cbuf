@@ -28,6 +28,7 @@ class ULogger {
   void fillFilename();
   bool openFile();
   void closeFile();
+  void endLoggingThread();
 
 public:
   static bool isInitialized();
