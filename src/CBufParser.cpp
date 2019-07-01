@@ -163,6 +163,40 @@ void process_element_string_csv(const ast_element* elem, u8* &bin_buffer, size_t
     delete[] str;
 }
 
+void process_element_short_string(const ast_element* elem, u8* &bin_buffer, size_t &buf_size)
+{
+    if (elem->array_suffix) {
+        assert(false);
+        // Array of strings not implemented
+    }
+
+    // This is s static array
+    u32 str_size = 16;
+    char str[16];
+    memcpy(str, bin_buffer, str_size);
+    bin_buffer += str_size;
+    buf_size -= str_size;
+
+    printf("%s = [ %s ]\n", elem->name, str);
+}
+
+void process_element_short_string_csv(const ast_element* elem, u8* &bin_buffer, size_t &buf_size)
+{
+    if (elem->array_suffix) {
+        assert(false);
+        // Array of strings not implemented
+    }
+
+    // This is s static array
+    u32 str_size = 16;
+    char str[16];
+    memcpy(str, bin_buffer, str_size);
+    bin_buffer += str_size;
+    buf_size -= str_size;
+
+    printf("%s", str);
+}
+
 
 template< typename T >
 void loop_all_structs(ast_global *ast, SymbolTable *symtable, T func)
@@ -308,6 +342,11 @@ bool CBufParser::PrintCSVInternal(const char *st_name)
           process_element_string_csv(elem, buffer, buf_size);
           break;
       }
+      case TYPE_SHORT_STRING:
+      {
+        process_element_short_string_csv(elem, buffer, buf_size);
+        break;
+      }
       case TYPE_CUSTOM:
       {
           auto *inst = sym->find_struct(elem->custom_name);
@@ -357,6 +396,11 @@ bool CBufParser::PrintInternal(const char* st_name)
       case TYPE_STRING:
       {
           process_element_string(elem, buffer, buf_size);
+          break;
+      }
+      case TYPE_SHORT_STRING:
+      {
+          process_element_short_string(elem, buffer, buf_size);
           break;
       }
       case TYPE_CUSTOM:

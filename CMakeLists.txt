@@ -30,7 +30,8 @@ target_include_directories(cbuf_parse PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 
 add_executable( cbuf ${CBUF_SRCS} )
 target_include_directories(cbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
-target_link_libraries(cbuf PRIVATE cbuf_parse stdc++fs )
+target_link_libraries(cbuf PRIVATE cbuf_parse )
+target_link_libraries(cbuf PRIVATE stdc++fs)
 
 if (NOT TARGET cbuf_lib)
     add_library( cbuf_lib INTERFACE )
