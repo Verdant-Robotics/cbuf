@@ -7,7 +7,6 @@
 #include <memory.h>
 #include <experimental/filesystem> //#include <filesystem>
 
-
 // stat() check if directory exists
 static  
 bool directory_exists( const char* dirpath )
@@ -19,8 +18,6 @@ bool directory_exists( const char* dirpath )
   return false;
 }
 
-
-
 static std::mutex g_file_mutex;
 static std::string outputdir;
 static std::string sessiontoken;
@@ -29,8 +26,6 @@ static std::string filename;
 static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
-
-
 
 void ULogger::setOutputDir(const char* outdir)
 {
@@ -79,13 +74,12 @@ std::string ULogger::getSessionPath()
   return result;    
 }
 
-
 void ULogger::fillFilename()
 {
   time_t rawtime;
-  struct tm *info;
-  time( &rawtime );
-  info = localtime( &rawtime );
+  struct tm* info;
+  time(&rawtime);
+  info = localtime(&rawtime);
 
   char buffer[PATH_MAX];
   memset(buffer, 0, sizeof(buffer));
@@ -93,6 +87,21 @@ void ULogger::fillFilename()
           info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 
   filename = getSessionPath() + "/" + buffer;
+}
+
+// Process packet here:
+// Check the dictionary if needed for metadata
+// Write the packet otherwise
+void ULogger::processPacket(void* data,
+                            int size,
+                            const char* metadata,
+                            const char* type_name) {
+  cbuf_preamble* pre = (cbuf_preamble*)data;
+  if (cos.dictionary.count(pre->hash) == 0) {
+    cos.serialize_metadata(metadata, pre->hash, type_name);
+  }
+
+  write(cos.stream, data, size);
 }
 
 // return a copy of the filename, not a reference 
@@ -125,65 +134,30 @@ void ULogger::closeFile()
   cos.close();    
 }
 
-
-
-/// Return the allocated memory to our pool
-void ULogger::freeBuffer(void *buffer)
+void ULogger::endLoggingThread()
 {
-  // For now, just a free
-  free(buffer);
+  quit_thread = true;
+  //uint64_t buffer_handle = ringbuffer.alloc(0, nullptr, nullptr);
+  //ringbuffer.populate(buffer_handle);
+  loggerThread->join();
+  delete loggerThread;
+  loggerThread = nullptr;
 }
 
-/// Functions to get memory and queue packets for logging
-void *ULogger::getBuffer(unsigned int size)
-{
-  // change me:
-  return malloc(size);
-}
-
-
-
-// Process packet here:
-// Check the dictionary if needed for metadata
-// Write the packet otherwise
-void ULogger::processPacket(Packet& pkt)
-{
-  std::lock_guard<std::mutex> guard(g_file_mutex);
-  cbuf_preamble *pre = (cbuf_preamble *)pkt.data;
-  if (cos.dictionary.count(pre->hash) == 0) {
-      cos.serialize_metadata(pkt.metadata, pre->hash, pkt.type_name);
-  }
-
-  write(cos.stream, pkt.data, pkt.size);
-
-  freeBuffer(pkt.data);
-}
-
-bool ULogger::initialize()
-{
-  loggerThread = new std::thread(
-        [this]()
-  {
-    printf( "ULogger::initialize  THREAD ENTER\n" );
-
-    while( !this->quit_thread ) {
-      Packet pkt;
-
-      bool empty = false;
+bool ULogger::initialize() {
+  loggerThread = new std::thread([this]() {
+    while (!this->quit_thread) {
+      if (ringbuffer.size() == 0)
       {
-        std::lock_guard<std::mutex> guard(mutexQueue);
-        empty = packetQueue.empty();        
-      }
-
-      if (empty) {
         usleep(1000);
         continue;
       }
-      else
-      {
-        std::lock_guard<std::mutex> guard(mutexQueue);
-        pkt = packetQueue.front();
-        packetQueue.pop();
+      std::optional<RingBuffer<1024 * 1024 * 10>::Buffer> r =
+          ringbuffer.lastUnread();
+
+      if (!r) {
+        usleep(1000);
+        continue;
       }
 
       if( !cos.is_open() ) {
@@ -193,18 +167,27 @@ bool ULogger::initialize()
         }
       }
 
-      processPacket(pkt);
+      if (r->size > 0) {
+        processPacket(r->loc, r->size, r->metadata, r->type_name);
+      }
+      ringbuffer.dequeue();
     }
 
     printf( "ULogger::initialize  flush the queue\n" );
     // Continue processing the queue until it is empty
-    {
-      std::lock_guard<std::mutex> guard(mutexQueue);
-      while(!packetQueue.empty()) {
-        Packet pkt = packetQueue.front();
-        packetQueue.pop();
-        processPacket(pkt);
+    while (ringbuffer.size() > 0) {
+      std::optional<RingBuffer<1024 * 1024 * 10>::Buffer> r =
+          ringbuffer.lastUnread();
+
+      if (!r) {
+        usleep(1000);
+        continue;
       }
+
+      if (r->size > 0) {
+        processPacket(r->loc, r->size, r->metadata, r->type_name);
+      }
+      ringbuffer.dequeue();
     }
 
     printf( "ULogger::initialize  close the file\n" );
@@ -213,9 +196,6 @@ bool ULogger::initialize()
   });
   return true;
 }
-
-
-
 
 bool ULogger::isInitialized()
 {
@@ -250,17 +230,8 @@ void ULogger::endLogging()
   if( g_ulogger == nullptr ) {
     return;
   }
-  g_ulogger->quit_thread = true;
-  g_ulogger->loggerThread->join();
-  delete g_ulogger->loggerThread;
-  g_ulogger->loggerThread = nullptr;
+  g_ulogger->endLoggingThread();
   delete g_ulogger;
   g_ulogger = nullptr;
   initialized = false;
-}
-
-void ULogger::queuePacket(void *data, unsigned int size, const char *metadata, const char *type_name)
-{
-  std::lock_guard<std::mutex> guard(mutexQueue);
-  packetQueue.emplace( metadata, type_name, data, size );
 }
