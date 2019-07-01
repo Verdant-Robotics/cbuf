@@ -84,7 +84,7 @@ void ULogger::fillFilename()
   char buffer[PATH_MAX];
   memset(buffer, 0, sizeof(buffer));
   sprintf(buffer, "vdnt.%d.%d.%d.%d.%d.%d.ulog",
-          info->tm_year + 1900, info->tm_mon, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
+          info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 
   filename = getSessionPath() + "/" + buffer;
 }
