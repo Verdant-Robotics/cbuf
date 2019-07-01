@@ -376,7 +376,7 @@ bool CBufParser::PrintInternal(const char* st_name)
   ast_struct *st = sym->find_struct(tname);
 
   // All structs have a preamble, skip it
-  u32 sizeof_preamble = 12; // 8 bytes hash, 4 bytes size
+  u32 sizeof_preamble = sizeof(cbuf_preamble); // 8 bytes hash, 4 bytes size
   buffer += sizeof_preamble;
   buf_size -= sizeof_preamble;
 
