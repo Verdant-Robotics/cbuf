@@ -10,6 +10,7 @@
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <optional>
 
 template <int Size>
 class RingBuffer {

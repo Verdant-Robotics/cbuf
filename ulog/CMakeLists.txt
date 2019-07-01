@@ -17,3 +17,4 @@ target_include_directories( uloglib PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cbufmsg 
 add_dependencies( uloglib generate_cbufulog )
 target_link_libraries( uloglib PUBLIC cbuf_lib vlog pthread stdc++fs )
 
+set_target_properties( uloglib PROPERTIES CXX_STANDARD 17 )

@@ -22,7 +22,10 @@ add_dependencies( test_ulogger generate_cbuf_test )
 target_link_libraries( test_ulogger cbuf_lib uloglib stdc++fs )
 target_include_directories( test_ulogger PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/samples )
 
+set_target_properties( test_ulogger PROPERTIES CXX_STANDARD 17 )
+
 add_test(
     NAME test_ulogger
     COMMAND test_ulogger
 )
+
