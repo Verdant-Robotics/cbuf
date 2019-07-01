@@ -67,7 +67,7 @@ std::string ULogger::getSessionPath()
   }
   if( !std::experimental::filesystem::exists( result.c_str() ) ) {
     if( !std::experimental::filesystem::create_directories( result.c_str() ) ) {
-      printf( "Error: output directory does not exist and could not create it %s \n", result.c_str() );
+      vlog_fatal(VCAT_GENERAL, "Error: output directory does not exist and could not create it %s \n", result.c_str() );
     }
   }
 
@@ -117,7 +117,7 @@ bool ULogger::openFile()
   std::lock_guard<std::mutex> guard(g_file_mutex);
   fillFilename();
  
-  printf( "openFile %s\n", filename.c_str() );
+  vlog_fine(VCAT_GENERAL, "Ulogger openFile %s\n", filename.c_str() );
  
   // Open the serialization file
   bool bret = cos.open_file(filename.c_str());
@@ -161,7 +161,6 @@ bool ULogger::initialize() {
       }
 
       if( !cos.is_open() ) {
-        printf( "ULogger::initialize  OPEN THE FILE\n" );
         if( !openFile() ) {
           return;
         }
@@ -173,7 +172,6 @@ bool ULogger::initialize() {
       ringbuffer.dequeue();
     }
 
-    printf( "ULogger::initialize  flush the queue\n" );
     // Continue processing the queue until it is empty
     while (ringbuffer.size() > 0) {
       std::optional<RingBuffer<1024 * 1024 * 10>::Buffer> r =
@@ -190,9 +188,7 @@ bool ULogger::initialize() {
       ringbuffer.dequeue();
     }
 
-    printf( "ULogger::initialize  close the file\n" );
     closeFile();
-    printf( "ULogger::initialize  THREAD EXIT\n" );
   });
   return true;
 }
