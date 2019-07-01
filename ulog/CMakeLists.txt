@@ -18,3 +18,5 @@ add_dependencies( uloglib generate_cbufulog )
 target_link_libraries( uloglib PUBLIC cbuf_lib vlog pthread stdc++fs )
 
 set_target_properties( uloglib PROPERTIES CXX_STANDARD 17 )
+
+install(TARGETS uloglib DESTINATION lib)
