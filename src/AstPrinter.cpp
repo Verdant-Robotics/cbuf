@@ -14,6 +14,7 @@ static const char * ElementTypeToStr[] = {
     "float",
     "double",
     "string",
+    "short_string",
     "bool"
 };
 
