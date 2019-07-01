@@ -51,7 +51,8 @@ void cbuf_ostream::close()
 
 bool cbuf_ostream::open_file(const char *fname)
 {
-  stream = open(fname, O_WRONLY | O_APPEND | O_CREAT, S_IRWXU);
+  stream = open(fname, O_WRONLY | O_APPEND | O_CREAT,
+                S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
   if (stream == -1) {
     perror("Error opening file ");
   }
