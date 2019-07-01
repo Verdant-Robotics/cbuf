@@ -49,7 +49,7 @@ std::string ULogger::getSessionToken()
     char buffer[PATH_MAX];
     memset(buffer, 0, sizeof(buffer));
     sprintf(buffer, "%d%d%d",
-            info->tm_year + 1900, info->tm_mon, info->tm_mday );
+            info->tm_year + 1900, info->tm_mon + 1, info->tm_mday );
     sessiontoken = buffer;
   }
   return sessiontoken;
