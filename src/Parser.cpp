@@ -168,6 +168,9 @@ ast_element* Parser::parseElementDeclaration()
                 Error("Array close bracket could not be found");
                 return nullptr;
             }
+        } else {
+          MustMatchToken(TK_SEMICOLON, "Expected semicolon\n");
+          return nullptr;
         }
     }
     lex->consumeToken(); // eat the semicolon
