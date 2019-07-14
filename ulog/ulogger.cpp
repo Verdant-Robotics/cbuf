@@ -6,6 +6,8 @@
 #include <linux/limits.h>
 #include <memory.h>
 #include <experimental/filesystem> //#include <filesystem>
+#include <fstream>
+#include <streambuf>
 
 // stat() check if directory exists
 static  
@@ -13,6 +15,16 @@ bool directory_exists( const char* dirpath )
 {
   struct stat status;
   if( stat( dirpath, &status ) == 0 && S_ISDIR( status.st_mode ) ) {  
+    return true;
+  }
+  return false;
+}
+
+static
+bool file_exists( const char* filepath )
+{
+  struct stat status;
+  if( stat( filepath, &status ) == 0 && S_ISREG( status.st_mode ) ) {
     return true;
   }
   return false;
@@ -46,10 +58,19 @@ std::string ULogger::getSessionToken()
     time( &rawtime );
     info = localtime( &rawtime );
 
+    const char *robot_name = "unknown";
+    std::stringstream sbuffer;
+
+    if (file_exists( "/etc/robot_name" )) {
+      std::ifstream t("/etc/robot_name");
+      sbuffer << t.rdbuf();
+      robot_name = sbuffer.str().c_str();
+    }
+
     char buffer[PATH_MAX];
     memset(buffer, 0, sizeof(buffer));
-    sprintf(buffer, "%d%d%d",
-            info->tm_year + 1900, info->tm_mon + 1, info->tm_mday );
+    sprintf(buffer, "%s-%d.%02d.%02d.%02d.%02d.ulog", robot_name,
+            info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min );
     sessiontoken = buffer;
   }
   return sessiontoken;
@@ -83,7 +104,7 @@ void ULogger::fillFilename()
 
   char buffer[PATH_MAX];
   memset(buffer, 0, sizeof(buffer));
-  sprintf(buffer, "vdnt.%d.%d.%d.%d.%d.%d.ulog",
+  sprintf(buffer, "vdnt.%d.%02d.%02d.%02d.%02d.%02d.ulog",
           info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 
   filename = getSessionPath() + "/" + buffer;
