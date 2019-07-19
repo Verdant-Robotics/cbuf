@@ -30,25 +30,28 @@ bool file_exists( const char* filepath )
   return false;
 }
 
-static std::mutex g_file_mutex;
-static std::string outputdir;
-static std::string sessiontoken;
-static std::string filename;
-
+static std::recursive_mutex g_file_mutex;
 static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
 void ULogger::setOutputDir(const char* outdir)
 {
-  std::lock_guard<std::mutex> guard(g_file_mutex);
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
   if( directory_exists( outdir ) ) {
     outputdir = outdir;
   }
 }
 
+void ULogger::setSessionToken(const std::string& token)
+{
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
+  sessiontoken = token;
+}
+
 std::string ULogger::getSessionToken()
 {
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
   // WIP: if and when the logdriving executable can stop recording and start the next one
   // without re-starting the executable,  then use the executable's process ID as the session token.
   // For now, just use the year_month_day  as the session.
@@ -58,13 +61,17 @@ std::string ULogger::getSessionToken()
     time( &rawtime );
     info = localtime( &rawtime );
 
-    const char *robot_name = "unknown";
+    char robot_name[64] = {};
+
+    strcpy(robot_name, "unknown");
     std::stringstream sbuffer;
 
     if (file_exists( "/etc/robot_name" )) {
       std::ifstream t("/etc/robot_name");
       sbuffer << t.rdbuf();
-      robot_name = sbuffer.str().c_str();
+      std::string tstr = sbuffer.str();
+      if (tstr[tstr.size()-1] == '\n') tstr[tstr.size()-1] = 0;
+      strcpy(robot_name, tstr.c_str());
     }
 
     char buffer[PATH_MAX];
@@ -89,6 +96,7 @@ std::string ULogger::getSessionPath()
   if( !std::experimental::filesystem::exists( result.c_str() ) ) {
     if( !std::experimental::filesystem::create_directories( result.c_str() ) ) {
       vlog_fatal(VCAT_GENERAL, "Error: output directory does not exist and could not create it %s \n", result.c_str() );
+      result = ".";
     }
   }
 
@@ -128,14 +136,14 @@ void ULogger::processPacket(void* data,
 // return a copy of the filename, not a reference 
 std::string ULogger::getFilename()
 {
-  std::lock_guard<std::mutex> guard(g_file_mutex);
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
   std::string result = filename;
   return result;   
 }
 
 bool ULogger::openFile()
 { 
-  std::lock_guard<std::mutex> guard(g_file_mutex);
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
   fillFilename();
  
   vlog_fine(VCAT_GENERAL, "Ulogger openFile %s\n", filename.c_str() );
@@ -151,7 +159,7 @@ bool ULogger::openFile()
 
 void ULogger::closeFile()
 {
-  std::lock_guard<std::mutex> guard(g_file_mutex);
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
   cos.close();    
 }
 
@@ -214,29 +222,24 @@ bool ULogger::initialize() {
   return true;
 }
 
-bool ULogger::isInitialized()
-{
-    return initialized;
-}
-
 // No public constructors, this is a singleton
 ULogger* ULogger::getULogger()
 {
   if (!initialized) { 
     std::lock_guard<std::mutex> guard(g_ulogger_mutex);
-    if (!initialized) {    
-      g_ulogger = new ULogger();
-      g_ulogger->quit_thread = false;
+    if (initialized) return g_ulogger;
 
-      bool bret = g_ulogger->initialize();
-      if (!bret) {
-        vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
-        delete g_ulogger;
-        return nullptr;
-      }
+    g_ulogger = new ULogger();
+    g_ulogger->quit_thread = false;
 
-      initialized = true;
+    bool bret = g_ulogger->initialize();
+    if (!bret) {
+      vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
+      delete g_ulogger;
+      return nullptr;
     }
+
+    initialized = true;
   }
   return g_ulogger;
 }

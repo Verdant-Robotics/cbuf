@@ -16,6 +16,10 @@ class ULogger {
   RingBuffer<1024 * 1024 * 10> ringbuffer;
   std::thread* loggerThread = nullptr;
 
+  std::string outputdir;
+  std::string sessiontoken;
+  std::string filename;
+
   bool initialize();
   cbuf_ostream cos;
   bool quit_thread;
@@ -31,12 +35,11 @@ class ULogger {
   void endLoggingThread();
 
 public:
-  static bool isInitialized();
-
   void setOutputDir(const char* outputdir);
   std::string getSessionToken();
-  std::string getSessionPath();
   std::string getFilename();
+  std::string getSessionPath();
+  void setSessionToken(const std::string& token);
 
   // No public constructors, this is a singleton
   static ULogger* getULogger();
