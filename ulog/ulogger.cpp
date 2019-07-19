@@ -31,10 +31,6 @@ bool file_exists( const char* filepath )
 }
 
 static std::mutex g_file_mutex;
-static std::string outputdir;
-static std::string sessiontoken;
-static std::string filename;
-
 static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
@@ -47,8 +43,15 @@ void ULogger::setOutputDir(const char* outdir)
   }
 }
 
+void ULogger::setSessionToken(const std::string& token)
+{
+  std::lock_guard<std::mutex> guard(g_file_mutex);
+  sessiontoken = token;
+}
+
 std::string ULogger::getSessionToken()
 {
+  std::lock_guard<std::mutex> guard(g_file_mutex);
   // WIP: if and when the logdriving executable can stop recording and start the next one
   // without re-starting the executable,  then use the executable's process ID as the session token.
   // For now, just use the year_month_day  as the session.
@@ -89,6 +92,7 @@ std::string ULogger::getSessionPath()
   if( !std::experimental::filesystem::exists( result.c_str() ) ) {
     if( !std::experimental::filesystem::create_directories( result.c_str() ) ) {
       vlog_fatal(VCAT_GENERAL, "Error: output directory does not exist and could not create it %s \n", result.c_str() );
+      result = ".";
     }
   }
 
@@ -214,29 +218,24 @@ bool ULogger::initialize() {
   return true;
 }
 
-bool ULogger::isInitialized()
-{
-    return initialized;
-}
-
 // No public constructors, this is a singleton
 ULogger* ULogger::getULogger()
 {
   if (!initialized) { 
     std::lock_guard<std::mutex> guard(g_ulogger_mutex);
-    if (!initialized) {    
-      g_ulogger = new ULogger();
-      g_ulogger->quit_thread = false;
+    if (initialized) return g_ulogger;
 
-      bool bret = g_ulogger->initialize();
-      if (!bret) {
-        vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
-        delete g_ulogger;
-        return nullptr;
-      }
+    g_ulogger = new ULogger();
+    g_ulogger->quit_thread = false;
 
-      initialized = true;
+    bool bret = g_ulogger->initialize();
+    if (!bret) {
+      vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
+      delete g_ulogger;
+      return nullptr;
     }
+
+    initialized = true;
   }
   return g_ulogger;
 }
