@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "inctype.h"
 #include "image.h"
 #include "assert.h"
 #include <chrono>

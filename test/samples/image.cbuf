@@ -57,6 +57,8 @@ namespace messages
         // it is possible to nest structures as needed, even in arrays
         image  img[3];
 
+        inctype myweird;
+
         // Complex string array, which is variable upon variable
         string names[5];
         string hard_dynamic[];
