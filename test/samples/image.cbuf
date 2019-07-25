@@ -38,7 +38,7 @@ namespace messages
         s32   format; // opengl format
         s32   type;   // opengl type
         double  timestamp;
-        u8   pixels[1024]; // raw data
+        u8   pixels[1024*3]; // raw data
         MyFancyEnum fancy;        
     }
 

@@ -149,6 +149,21 @@ ast_element* Parser::parseElementDeclaration()
             if (lex->checkToken(TK_NUMBER)) {
                 lex->getNextToken(t);
                 ar->size = t._u64;
+                while (!lex->checkToken(TK_CLOSE_SQBRACKET)) {
+                    if (lex->checkToken(TK_STAR)) {
+                        lex->consumeToken();
+                        lex->getNextToken(t);
+                        if (t.type != TK_NUMBER) {
+                            Error("Number is expected after a '*' operator\n");
+                            return nullptr;
+                        }
+                        ar->size *= t._u64;
+                    } else {
+                        Error("Only a close bracket or a multiplication operation are supported for now, found %s\n",
+                              TokenTypeToStr(lex->getTokenType()));
+                        return nullptr;
+                    }
+                }
             } 
             
             if (lex->checkToken(TK_CLOSE_SQBRACKET)) {
