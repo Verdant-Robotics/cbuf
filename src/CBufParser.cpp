@@ -313,11 +313,8 @@ bool CBufParser::PrintCSVHeader()
   return true;
 }
 
-bool CBufParser::PrintCSVInternal(const char *st_name)
+bool CBufParser::PrintCSVInternal(const ast_struct* st)
 {
-  auto tname = CreateTextType(pool, st_name);
-  ast_struct *st = sym->find_struct(tname);
-
   // All structs have a preamble, skip it
   u32 sizeof_preamble = sizeof(cbuf_preamble); // 8 bytes hash, 4 bytes size
   buffer += sizeof_preamble;
@@ -351,7 +348,7 @@ bool CBufParser::PrintCSVInternal(const char *st_name)
       {
           auto *inst = sym->find_struct(elem);
           if (inst != nullptr) {
-              PrintCSVInternal(elem->custom_name);
+              PrintCSVInternal(inst);
           } else {
               auto *enm = sym->find_enum(elem);
               if (enm == nullptr) {
@@ -370,11 +367,8 @@ bool CBufParser::PrintCSVInternal(const char *st_name)
   return true;
 }
 
-bool CBufParser::PrintInternal(const char* st_name)
+bool CBufParser::PrintInternal(const ast_struct* st)
 {
-  auto tname = CreateTextType(pool, st_name);
-  ast_struct *st = sym->find_struct(tname);
-
   // All structs have a preamble, skip it
   u32 sizeof_preamble = sizeof(cbuf_preamble); // 8 bytes hash, 4 bytes size
   buffer += sizeof_preamble;
@@ -407,7 +401,7 @@ bool CBufParser::PrintInternal(const char* st_name)
       {
           auto *inst = sym->find_struct(elem);
           if (inst != nullptr) {
-              PrintInternal(elem->custom_name);
+              PrintInternal(inst);
           } else {
               auto *enm = sym->find_enum(elem);
               if (enm == nullptr) {
@@ -424,12 +418,27 @@ bool CBufParser::PrintInternal(const char* st_name)
   return true;
 }
 
+ast_struct* CBufParser::decompose_and_find(const char *st_name)
+{
+  char namesp[128] = {};
+  auto *sep = strchr(st_name, ':');
+  if (sep == nullptr) {
+    auto tname = CreateTextType(pool, st_name);
+    return sym->find_struct(tname);
+  }
+
+  for(int i = 0; st_name[i] != ':'; i++) namesp[i] = st_name[i];
+  auto tname = CreateTextType(pool, sep+2);
+  return sym->find_struct(tname, namesp);
+}
+
+
 // Returns the number of bytes consumed
 unsigned int CBufParser::Print(const char* st_name, unsigned char *buffer, size_t buf_size)
 {
   this->buffer = buffer;
   this->buf_size = buf_size;
-  if (!PrintInternal(st_name)) {
+  if (!PrintInternal(decompose_and_find(st_name))) {
     return 0;
   }
   this->buffer = nullptr;
@@ -441,7 +450,7 @@ unsigned int CBufParser::PrintCSV(const char* st_name, unsigned char *buffer, si
 {
   this->buffer = buffer;
   this->buf_size = buf_size;
-  if (!PrintCSVInternal(st_name)) {
+  if (!PrintCSVInternal(decompose_and_find(st_name))) {
     return 0;
   }
   this->buffer = nullptr;
