@@ -4,6 +4,7 @@
 #include "TextType.h"
 
 struct ast_namespace;
+struct ast_struct;
 
 enum ElementType
 {
@@ -34,6 +35,8 @@ struct ast_element
     TextType name = nullptr ;
     ElementType type;
     TextType custom_name = nullptr;  
+    TextType namespace_name = nullptr;
+    ast_struct *enclosing_struct = nullptr;
     bool is_dynamic_array = false;
     ast_array_definition* array_suffix = nullptr;
 };
@@ -56,25 +59,18 @@ struct ast_enum
     ast_namespace* space = nullptr;
 };
 
-struct ast_channel
-{
-    TextType name = nullptr;
-    TextType inner_struct = nullptr;
-    ast_namespace *space = nullptr;
-};
-
 struct ast_namespace
 {
     TextType name = nullptr ;
     Array<ast_struct *> structs;
-    Array<ast_channel *> channels;
     Array<ast_enum *> enums;
 };
+
+#define GLOBAL_NAMESPACE "__global_namespace"
 
 struct ast_global
 {
     Array<ast_namespace *> spaces;
-    Array<ast_channel *> channels;
     Array<ast_enum *> enums;
     ast_namespace global_space;
 };

@@ -89,7 +89,6 @@ enum TOKEN_TYPE {
     TK_FLOAT,
 
     TK_STRUCT,
-    TK_CHANNEL,
 
     // Comment tokens, not really used
 

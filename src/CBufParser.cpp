@@ -223,12 +223,12 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
             return false;
         }
         if (elem->type == TYPE_CUSTOM) {
-            if (!symtable->find_symbol(elem->custom_name)) {
+            if (!symtable->find_symbol(elem)) {
                 fprintf(stderr, "Struct %s, element %s was referencing type %s and could not be found\n",
                     st->name, elem->name, elem->custom_name);
                 exit(-1);
             }
-            auto *inner_st = symtable->find_struct(elem->custom_name);
+            auto *inner_st = symtable->find_struct(elem);
             if (inner_st == nullptr) {
                 // Must be an enum, it is simple
                 continue;
@@ -349,11 +349,11 @@ bool CBufParser::PrintCSVInternal(const char *st_name)
       }
       case TYPE_CUSTOM:
       {
-          auto *inst = sym->find_struct(elem->custom_name);
+          auto *inst = sym->find_struct(elem);
           if (inst != nullptr) {
               PrintCSVInternal(elem->custom_name);
           } else {
-              auto *enm = sym->find_enum(elem->custom_name);
+              auto *enm = sym->find_enum(elem);
               if (enm == nullptr) {
                   fprintf(stderr, "Enum %s could not be parsed\n", elem->custom_name);
                   return false;
@@ -405,11 +405,11 @@ bool CBufParser::PrintInternal(const char* st_name)
       }
       case TYPE_CUSTOM:
       {
-          auto *inst = sym->find_struct(elem->custom_name);
+          auto *inst = sym->find_struct(elem);
           if (inst != nullptr) {
               PrintInternal(elem->custom_name);
           } else {
-              auto *enm = sym->find_enum(elem->custom_name);
+              auto *enm = sym->find_enum(elem);
               if (enm == nullptr) {
                   fprintf(stderr, "Enum %s could not be parsed\n", elem->custom_name);
                   return false;

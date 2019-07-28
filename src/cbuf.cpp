@@ -49,7 +49,7 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
             return false;
         }
         if (elem->type == TYPE_CUSTOM) {
-            if (!symtable->find_symbol(elem->custom_name)) {
+            if (!symtable->find_symbol(elem)) {
                 // This change will support the cub to cbuf inclusion, assuming that
                 // included messages are simple. That is normally the case for us,
                 // even through a complex assumption would be safer and more encompassing
@@ -58,7 +58,7 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
                     st->name, elem->name, elem->custom_name);
                 exit(-1);
             }
-            auto *inner_st = symtable->find_struct(elem->custom_name);
+            auto *inner_st = symtable->find_struct(elem);
             if (inner_st == nullptr) {
                 // Must be an enum, it is simple
                 continue;

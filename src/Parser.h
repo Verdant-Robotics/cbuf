@@ -14,6 +14,7 @@ class Parser
     void ErrorWithLoc(SrcLocation& loc, const char *msg, ...);
     bool MustMatchToken(TOKEN_TYPE type, const char *msg);
     ast_element * parseElementDeclaration();
+    ast_namespace *find_existing_namespace(const TextType name);
 
 public:
     Lexer *lex;
@@ -24,7 +25,6 @@ public:
 
     ast_enum* parseEnum();
     ast_struct* parseStruct();
-    ast_channel* parseChannel();
     ast_namespace* parseNamespace();
     const char *getErrorString() { return errorStringBuffer; } 
 };

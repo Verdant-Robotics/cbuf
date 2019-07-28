@@ -1,6 +1,7 @@
 #include "AstPrinter.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 static const char * ElementTypeToStr[] = {
     "uint8_t",
@@ -31,33 +32,31 @@ void AstPrinter::print_elem(ast_element *elem)
     ast_array_definition *ar = elem->array_suffix;
 
     if (elem->custom_name) {
-        buffer->print("%s ", elem->custom_name);
+        if (elem->namespace_name) buffer->print("%s::%s ", elem->namespace_name, elem->custom_name);
+        else buffer->print("%s ", elem->custom_name);
         if (sym) {
-            auto *struc = sym->find_struct(elem->custom_name);
-            if (struc && !printed_types.count(struc) ) {
-                // Mark the struct as printed
-                printed_types[struc] = 1;
-                // Print the struct we saw
+            auto *struc = sym->find_struct(elem);
+            if (struc && !printed_types[struc->space]) {
+                printed_types[struc->space] = 1;
+                // Print the new namespace
                 StringBuffer new_buf;
                 StringBuffer *old_buf;
                 old_buf = buffer;
                 buffer = &new_buf;
-                print_struct(struc);
+                print_namespace(struc->space);
                 buffer = old_buf;
                 // Append it to our buffer
                 buffer->prepend(&new_buf);
-
             }
-            auto *enm = sym->find_enum(elem->custom_name);
-            if (enm && !printed_types.count(enm)) {
-                // Mark the enum as printed
-                printed_types[enm] = 1;
-                // Print the enum we saw
+            auto *enm = sym->find_enum(elem);
+            if (enm && !printed_types[enm->space]) {
+                printed_types[enm->space] = 1;
+                // Print the new namespace
                 StringBuffer new_buf;
                 StringBuffer *old_buf;
                 old_buf = buffer;
                 buffer = &new_buf;
-                print_enum(enm);
+                print_namespace(enm->space);
                 buffer = old_buf;
                 // Append it to our buffer
                 buffer->prepend(&new_buf);
@@ -78,6 +77,7 @@ void AstPrinter::print_elem(ast_element *elem)
 
 void AstPrinter::print_enum(ast_enum *enm)
 {
+    printed_types[enm] = 1;
     buffer->print("enum %s{\n", enm->name);
     buffer->increase_ident();
     for(auto* el: enm->elements) {
@@ -89,6 +89,7 @@ void AstPrinter::print_enum(ast_enum *enm)
 
 void AstPrinter::print_struct(ast_struct *st)
 {
+    printed_types[st] = 1;
     buffer->print("struct %s {\n", st->name);
     buffer->increase_ident();
     for(auto *elem: st->elements) {
@@ -98,20 +99,27 @@ void AstPrinter::print_struct(ast_struct *st)
     buffer->print("}\n", "");
 }
 
-void AstPrinter::print_channel(ast_channel *cn)
-{
-    // deprecated
-}
-
 void AstPrinter::print_namespace(ast_namespace *sp)
 {
-    buffer->print("namespace %s {\n", "", sp->name);
-    buffer->increase_ident();
+    ast_namespace *oldsp = currentsp;
+    currentsp = sp;
+    printed_types[sp] = 1;
+    if (strcmp(sp->name, GLOBAL_NAMESPACE)) {
+      buffer->print("namespace %s {\n", sp->name);
+      buffer->increase_ident();
+    }
+    for(auto *enm: sp->enums) {
+        print_enum(enm);
+    }
     for(auto *st: sp->structs) {
         print_struct(st);
     }
-    buffer->decrease_ident();
-    buffer->print("}\n\n", "");
+    if (strcmp(sp->name, GLOBAL_NAMESPACE)) {
+      buffer->decrease_ident();
+      buffer->print("}\n\n", "");
+    } else {
+      buffer->print("\n");
+    }
 }
 
 void AstPrinter::print_ast(StringBuffer *buf, ast_global *ast)
@@ -121,9 +129,8 @@ void AstPrinter::print_ast(StringBuffer *buf, ast_global *ast)
         print_namespace(sp);
     }
 
-    for(auto *st: ast->global_space.structs) {
-        print_struct(st);
-    }
+    print_namespace(&ast->global_space);
+
     buffer = nullptr;
 }
 
@@ -132,7 +139,8 @@ void AstPrinter::print_ast(StringBuffer *buf, ast_struct *ast)
     buffer = buf;
     printed_types.clear();
 
-    print_struct(ast);
+    print_namespace(ast->space);
+
     buffer = nullptr;
     printed_types.clear();
 }
@@ -140,8 +148,8 @@ void AstPrinter::print_ast(StringBuffer *buf, ast_struct *ast)
 void AstPrinter::print_ast(StringBuffer *buf, ast_element *elem)
 {
     buffer = buf;
-    printed_types.clear();
-    print_elem(elem);
+    printed_types.clear();    
+    print_namespace(elem->enclosing_struct->space);
     buffer = nullptr;
     printed_types.clear();
 }
