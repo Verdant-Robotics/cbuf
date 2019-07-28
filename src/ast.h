@@ -2,9 +2,11 @@
 #include "Array.h"
 #include "mytypes.h"
 #include "TextType.h"
+#include "SrcLocation.h"
 
 struct ast_namespace;
 struct ast_struct;
+class FileData;
 
 enum ElementType
 {
@@ -37,6 +39,7 @@ struct ast_element
     TextType custom_name = nullptr;  
     TextType namespace_name = nullptr;
     ast_struct *enclosing_struct = nullptr;
+    SrcLocation loc;
     bool is_dynamic_array = false;
     ast_array_definition* array_suffix = nullptr;
 };
@@ -46,6 +49,8 @@ struct ast_struct
     TextType name = nullptr ;
     Array<ast_element *> elements;    
     ast_namespace* space = nullptr;
+    FileData *file = nullptr;
+    SrcLocation loc;
     u64 hash_value = 0;
     bool simple = false;
     bool simple_computed = false;
@@ -57,6 +62,8 @@ struct ast_enum
     TextType name = nullptr;
     Array<TextType> elements;
     ast_namespace* space = nullptr;
+    FileData *file = nullptr;
+    SrcLocation loc;
 };
 
 struct ast_namespace

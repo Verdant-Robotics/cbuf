@@ -5,6 +5,7 @@
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "cbuf_preamble.h"
+#include "Interp.h"
 
 #include <string.h>
 
@@ -199,20 +200,20 @@ void process_element_short_string_csv(const ast_element* elem, u8* &bin_buffer, 
 
 
 template< typename T >
-void loop_all_structs(ast_global *ast, SymbolTable *symtable, T func)
+void loop_all_structs(ast_global *ast, SymbolTable *symtable, Interp *interp, T func)
 {
     for(auto *sp: ast->spaces) {
         for(auto *st: sp->structs) {
-            func(st, symtable);
+            func(st, symtable, interp);
         }
     }
 
     for(auto *st: ast->global_space.structs) {
-        func(st, symtable);
+        func(st, symtable, interp);
     }
 }
 
-bool compute_simple(ast_struct *st, SymbolTable *symtable)
+bool compute_simple(ast_struct *st, SymbolTable *symtable, Interp *interp)
 {
     if (st->simple_computed) return st->simple;
     st->simple = true;
@@ -233,7 +234,7 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
                 // Must be an enum, it is simple
                 continue;
             }
-            bool elem_simple = compute_simple(inner_st, symtable);
+            bool elem_simple = compute_simple(inner_st, symtable, interp);
             if (!elem_simple) {
                 st->simple = false;
                 st->simple_computed = true;
@@ -267,20 +268,23 @@ CBufParser::~CBufParser()
 bool CBufParser::ParseMetadata(const std::string& metadata, const std::string& struct_name)
 {
   Parser parser;
+  Interp interp;
+
+  parser.interp = &interp;
   ast = parser.ParseBuffer(metadata.c_str(), metadata.size()-1, pool);
   if (ast == nullptr || !parser.success) {
-    fprintf(stderr, "Error during parsing:\n%s\n", parser.getErrorString());
+    fprintf(stderr, "Error during parsing:\n%s\n", interp.getErrorString());
     return false;
   }
 
   sym = new SymbolTable;
   bool bret = sym->initialize(ast);
   if (!bret) {
-      fprintf(stderr, "Error during symbol table parsing:\n%s\n", parser.getErrorString());
+      fprintf(stderr, "Error during symbol table parsing:\n%s\n", interp.getErrorString());
       return false;
   }
 
-  loop_all_structs(ast, sym, compute_simple);
+  loop_all_structs(ast, sym, &interp, compute_simple);
 
   main_struct_name = struct_name;
   return true;

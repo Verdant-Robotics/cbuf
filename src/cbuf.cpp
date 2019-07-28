@@ -5,7 +5,7 @@
 #include "SymbolTable.h"
 #include "AstPrinter.h"
 #include "CPrinter.h"
-#include <inttypes.h>
+#include "Interp.h"
 
 void checkParsing(const char *filename)
 {
@@ -25,20 +25,20 @@ void checkParsing(const char *filename)
 }
 
 template< typename T >
-void loop_all_structs(ast_global *ast, SymbolTable *symtable, T func)
+void loop_all_structs(ast_global *ast, SymbolTable *symtable, Interp* interp, T func)
 {
     for(auto *sp: ast->spaces) {
         for(auto *st: sp->structs) {
-            func(st, symtable);
+            func(st, symtable, interp);
         }
     }
 
     for(auto *st: ast->global_space.structs) {
-        func(st, symtable);
+        func(st, symtable, interp);
     }
 }
 
-bool compute_simple(ast_struct *st, SymbolTable *symtable)
+bool compute_simple(ast_struct *st, SymbolTable *symtable, Interp* interp)
 {
     if (st->simple_computed) return st->simple;
     st->simple = true;
@@ -63,7 +63,7 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
                 // Must be an enum, it is simple
                 continue;
             }
-            bool elem_simple = compute_simple(inner_st, symtable);
+            bool elem_simple = compute_simple(inner_st, symtable, interp);
             if (!elem_simple) {
                 st->simple = false;
                 st->simple_computed = true;
@@ -86,7 +86,7 @@ u64 hash(const unsigned char *str)
     return hash;
 }
 
-bool compute_hash(ast_struct *st, SymbolTable *symtable) 
+bool compute_hash(ast_struct *st, SymbolTable *symtable, Interp* interp)
 {
     StringBuffer buf;
     AstPrinter printer;
@@ -100,7 +100,7 @@ bool compute_hash(ast_struct *st, SymbolTable *symtable)
                 continue;
             }
             assert(inner_st);
-            bool bret = compute_hash(inner_st, symtable);
+            bool bret = compute_hash(inner_st, symtable, interp);
             if (!bret) return false;
             buf.print("%" PRIX64 " ", inner_st->hash_value);
         } else {
@@ -115,6 +115,7 @@ bool compute_hash(ast_struct *st, SymbolTable *symtable)
 
 int main(int argc, char **argv)
 {
+    Interp interp;
     Parser parser;
     PoolAllocator pool;
 
@@ -123,11 +124,14 @@ int main(int argc, char **argv)
         exit(0);
     }
 
+    parser.interp = &interp;
+
     // checkParsing(argv[1]);
 
     auto top_ast = parser.Parse(argv[1], &pool);
     if (!parser.success) {
-        fprintf(stderr, "Error during parsing:\n%s\n", parser.getErrorString());
+        assert(interp.has_error());
+        fprintf(stderr, "Error during parsing:\n%s\n", interp.getErrorString());
         return -1;
     }
 
@@ -135,8 +139,8 @@ int main(int argc, char **argv)
     bool bret = symtable.initialize(top_ast);
     if (!bret) return -1;
 
-    loop_all_structs(top_ast, &symtable, compute_simple);
-    loop_all_structs(top_ast, &symtable, compute_hash);
+    loop_all_structs(top_ast, &symtable, &interp, compute_simple);
+    loop_all_structs(top_ast, &symtable, &interp, compute_hash);
 /*
     AstPrinter printer;
     StringBuffer buf;

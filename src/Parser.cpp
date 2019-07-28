@@ -27,15 +27,10 @@ static bool isBuiltInType(TOKEN_TYPE t)
 void Parser::ErrorWithLoc(SrcLocation &loc, const char *msg, ...)
 {
     va_list args;
-    s32 off = sprintf(errorString, "%s:%d:%d: error : ", lex->getFilename(),
-        loc.line, loc.col);
-
     va_start(args, msg);
-    off += vsprintf(errorString + off, msg, args);
+    interp->ErrorWithLoc(loc, lex->getFileData(), msg, args);
     va_end(args);
     success = false;
-    errorString += off;
-    errorString = lex->getFileData()->printLocation(loc, errorString);
 }
 
 void Parser::Error(const char *msg, ...)
@@ -43,15 +38,10 @@ void Parser::Error(const char *msg, ...)
     va_list args;
     SrcLocation loc;
     lex->getLocation(loc);
-    s32 off = sprintf(errorString, "%s:%d:%d: error : ", lex->getFilename(), 
-        loc.line, loc.col);
-
     va_start(args, msg);
-    off += vsprintf(errorString + off, msg, args);
+    interp->ErrorWithLoc(loc, lex->getFileData(), msg, args);
     va_end(args);
     success = false;
-    errorString += off;
-    errorString = lex->getFileData()->printLocation(loc, errorString);
 }
 
 bool Parser::MustMatchToken(TOKEN_TYPE type, const char *msg)
@@ -81,6 +71,7 @@ ast_element* Parser::parseElementDeclaration()
         return nullptr;
     }
     ast_element *elem = new ast_element();
+    lex->getLocation(elem->loc);
     if (t.type == TK_IDENTIFIER) {
         elem->custom_name = t.string;
         elem->type = TYPE_CUSTOM;
@@ -218,7 +209,9 @@ ast_struct* Parser::parseStruct()
         return nullptr;
     }
     ast_struct *nst = new ast_struct();
+    lex->getLocation(nst->loc);
     nst->name = t.string;
+    nst->file = lex->getFileData();
      
     if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a struct\n")) {
         return nullptr;
@@ -253,6 +246,8 @@ ast_enum* Parser::parseEnum()
     }
     ast_enum *en = new ast_enum();
     en->name = t.string;
+    lex->getLocation(en->loc);
+    en->file = lex->getFileData();
 
     if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a namespace\n")) {
         return nullptr;
@@ -359,13 +354,8 @@ ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *po
 
     lex->setPoolAllocator(pool);
 
-    if (errorString == nullptr) {
-        errorString = errorStringBuffer;
-        errorString[0] = 0;
-    }
-
     if (!lex->loadString(buffer, buf_size)) {
-        errorString += sprintf(errorString, "Error: String Buffer could not be opened to be processed\n");
+        interp->Error("Error: String Buffer could not be opened to be processed\n");
         return nullptr;
     }
 
@@ -418,13 +408,9 @@ ast_global * Parser::Parse(const char *filename, Allocator *pool)
 
     lex->setPoolAllocator(pool);
 
-    if (errorString == nullptr) {
-        errorString = errorStringBuffer;
-        errorString[0] = 0;
-    }
 
     if (!lex->openFile(filename)) {
-        errorString += sprintf(errorString, "Error: File [%s] could not be opened to be processed\n", filename);
+        interp->Error("Error: File [%s] could not be opened to be processed\n", filename);
         return nullptr;
     }
 

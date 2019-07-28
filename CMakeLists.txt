@@ -17,7 +17,7 @@ endif()
 set( CBUF_PARSE_SRCS
   src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp
   src/Parser.cpp src/Allocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
-  src/TextType.cpp src/Token.cpp src/CBufParser.cpp
+  src/TextType.cpp src/Token.cpp src/CBufParser.cpp src/Interp.cpp
 )
 
 set( CBUF_HDRS include/cbuf_preamble.h include/vstring.h include/CBufParser.h )
