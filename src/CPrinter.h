@@ -6,6 +6,7 @@
 
 class CPrinter
 {
+    FileData *main_file = nullptr;
     StringBuffer *buffer;
     SymbolTable *sym;
     void print(ast_namespace *sp);

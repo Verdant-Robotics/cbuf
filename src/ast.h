@@ -80,4 +80,5 @@ struct ast_global
     Array<ast_namespace *> spaces;
     Array<ast_enum *> enums;
     ast_namespace global_space;
+    FileData *main_file = nullptr;
 };

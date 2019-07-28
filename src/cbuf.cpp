@@ -90,10 +90,15 @@ bool compute_hash(ast_struct *st, SymbolTable *symtable, Interp* interp)
 
     for(auto *elem: st->elements) {
         if (elem->type == TYPE_CUSTOM) {
-            auto *inner_st = symtable->find_struct(elem->custom_name);
+            auto *enm = symtable->find_enum(elem);
+            if (enm != nullptr) {
+              printer.print_ast(&buf, elem);
+              continue;
+            }
+            auto *inner_st = symtable->find_struct(elem);
             if (!inner_st) {
-                printer.print_ast(&buf, elem);
-                continue;
+              interp->Error(elem, "Could not find this element for hash\n");
+              return false;
             }
             assert(inner_st);
             bool bret = compute_hash(inner_st, symtable, interp);
@@ -109,22 +114,45 @@ bool compute_hash(ast_struct *st, SymbolTable *symtable, Interp* interp)
     return true;
 }
 
+bool parseArgs(Args& args, int argc, char** argv)
+{
+  for(int i=1; i<argc; i++) {
+    if ((argv[i][0] == '-') && (argv[i][1] == 'I')) {
+      args.incs.push_back(&argv[i][2]);
+    } else {
+      if (args.srcfile == nullptr) {
+        args.srcfile = argv[i];
+      } else {
+        fprintf(stderr, "Please provide a cbuf file\n");
+        return false;
+      }
+    }
+  }
+
+  if (args.srcfile == nullptr) {
+    fprintf(stderr, "Two input files are not supported\n");
+    return false;
+  }
+  return true;
+}
+
 int main(int argc, char **argv)
 {
+    Args args;
     Interp interp;
     Parser parser;
     PoolAllocator pool;
 
-    if (argc < 2) {
-        fprintf(stderr, "Please provide a cbuf file\n");
+    if (!parseArgs(args, argc, argv)) {
         exit(0);
     }
 
     parser.interp = &interp;
+    parser.args = &args;
 
     // checkParsing(argv[1]);
 
-    auto top_ast = parser.Parse(argv[1], &pool);
+    auto top_ast = parser.Parse(args.srcfile, &pool);
     if (!parser.success) {
         assert(interp.has_error());
         fprintf(stderr, "Error during parsing:\n%s\n", interp.getErrorString());

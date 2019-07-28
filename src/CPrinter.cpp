@@ -428,6 +428,8 @@ void CPrinter::print_net(ast_struct *st)
 
 void CPrinter::print(ast_struct *st)
 {
+  if (st->file != main_file) return;
+
   if (st->simple) {
     buffer->print("struct __attribute__ ((__packed__)) %s {\n", st->name);
   } else {
@@ -866,6 +868,8 @@ void CPrinter::print(ast_struct *st)
 
 void CPrinter::print(ast_enum *en)
 {
+    if (en->file != main_file) return;
+
     buffer->print("enum %s\n", en->name);
     buffer->print("{\n");
     buffer->increase_ident();
@@ -913,6 +917,7 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
 {
     buffer = buf;
     sym = symbols;
+    main_file = top_ast->main_file;
 
     buffer->print("#pragma once\n");
     buffer->print("#include \"cbuf_preamble.h\"\n");
@@ -937,4 +942,5 @@ void CPrinter::print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbol
 
     buffer = nullptr;
     sym = nullptr;
+    main_file = nullptr;
 }

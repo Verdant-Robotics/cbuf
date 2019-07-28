@@ -3,6 +3,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+static bool file_exists(const char *file)
+{
+    struct stat buffer;
+    return (stat (file, &buffer) == 0);
+}
 
 static bool isBuiltInType(TOKEN_TYPE t)
 {
@@ -309,6 +318,7 @@ ast_namespace* Parser::parseNamespace()
     if (sp == nullptr) {
         sp = new ast_namespace();
         sp->name = t.string;
+        top_level_ast->spaces.push_back(sp);
     }
 
     if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a namespace\n")) {
@@ -343,10 +353,46 @@ ast_namespace* Parser::parseNamespace()
         }
     }
     lex->consumeToken();
+
     return sp;
 }
 
-ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *pool)
+void Parser::parseImport()
+{
+    Token t;
+    lex->getNextToken(t);
+
+    if (t.type != TK_IMPORT) {
+        Error("Keyword 'import' expected, found: %s\n", TokenTypeToStr(t.type));
+        return;
+    }
+
+    lex->getNextToken(t);
+    if (t.type != TK_STRING) {
+        Error("After a #import there has to be a filename, in quotes, found: %s\n", TokenTypeToStr(t.type));
+        return;
+    }
+
+    // Declare a local parser and parse the input file as needed
+    Parser local_parser;
+    local_parser.args = this->args;
+    local_parser.interp = this->interp;
+
+    // try to find the file we have to import, t.string;
+    for( auto folder: args->incs) {
+      char impfile[128] = {};
+      sprintf(impfile, "%s/%s", folder, t.string);
+      if (file_exists(impfile)) {
+        local_parser.Parse(impfile, pool, top_level_ast);
+        success = local_parser.success;
+        return;
+      }
+    }
+    interp->ErrorWithLoc(t.loc, lex->getFileData(), "Could not find import file: %s\n", t.string);
+    success = false;
+}
+
+ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *pool, ast_global *top)
 {
     Lexer local_lex;
     this->lex = &local_lex;
@@ -359,48 +405,10 @@ ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *po
         return nullptr;
     }
 
-    ast_global *top_ast = new (pool) ast_global;
-    success = true;
-    top_level_ast = top_ast;
-
-    lex->parseFile();
-    while (!lex->checkToken(TK_LAST_TOKEN)) {
-        Token t;
-        lex->lookaheadToken(t);
-        if (t.type == TK_NAMESPACE) {
-            auto *sp = parseNamespace();
-            if (!success) {
-                return nullptr;
-            }
-            if (nullptr == find_existing_namespace(sp->name)) {
-                top_ast->spaces.push_back(sp);
-            }
-        } else if (t.type == TK_STRUCT) {
-            auto st = parseStruct();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->global_space.structs.push_back(st);
-            st->space = &top_ast->global_space;
-        } else if (t.type == TK_ENUM) {
-            auto *en = parseEnum();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->enums.push_back(en);
-            en->space = &top_ast->global_space;
-        } else {
-            Error("Unknown token [%s], at the top level only structs and namespaces are allowed\n", TokenTypeToStr(t.type));
-            return nullptr;
-        }
-    }
-
-    this->lex = nullptr;
-    top_level_ast = nullptr;
-    return top_ast;
+    return ParseInternal(top);
 }
 
-ast_global * Parser::Parse(const char *filename, Allocator *pool)
+ast_global * Parser::Parse(const char *filename, Allocator *pool, ast_global *top)
 {
     Lexer local_lex;
     this->lex = &local_lex;
@@ -408,50 +416,65 @@ ast_global * Parser::Parse(const char *filename, Allocator *pool)
 
     lex->setPoolAllocator(pool);
 
-
     if (!lex->openFile(filename)) {
         interp->Error("Error: File [%s] could not be opened to be processed\n", filename);
         return nullptr;
     }
 
-    ast_global *top_ast = new (pool) ast_global;
-    success = true;
-    top_level_ast = top_ast;
+    return ParseInternal(top);
+}
+
+ast_global* Parser::ParseInternal(ast_global *top)
+{
+  ast_global *top_ast;
+  if (top == nullptr) {
+    top_ast = new (pool) ast_global;
     top_ast->global_space.name = CreateTextType(pool, GLOBAL_NAMESPACE);
+    top_ast->main_file = lex->getFileData();
+  } else {
+    top_ast = top;
+  }
 
-    lex->parseFile();
-    while (!lex->checkToken(TK_LAST_TOKEN)) {
-        Token t;
-        lex->lookaheadToken(t);
-        if (t.type == TK_NAMESPACE) {
-            auto *sp = parseNamespace();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->spaces.push_back(sp);
-        } else if (t.type == TK_STRUCT) {
-            auto st = parseStruct();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->global_space.structs.push_back(st);
-            st->space = &top_ast->global_space;
-        } else if (t.type == TK_ENUM) {
-            auto *en = parseEnum();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->enums.push_back(en);
-            en->space = &top_ast->global_space;
-        } else {
-            Error("Unknown token [%s], at the top level only structs and namespaces are allowed\n", TokenTypeToStr(t.type));
-            return nullptr;
-        }
-    }
+  success = true;
+  top_level_ast = top_ast;
 
-    this->lex = nullptr;
-    top_level_ast = nullptr;
-    return top_ast;
+  lex->parseFile();
+  while (!lex->checkToken(TK_LAST_TOKEN)) {
+      Token t;
+      lex->lookaheadToken(t);
+      if (t.type == TK_IMPORT) {
+          parseImport();
+          if (!success) {
+              return nullptr;
+          }
+      } else if (t.type == TK_NAMESPACE) {
+          auto *sp = parseNamespace();
+          if (!success) {
+              return nullptr;
+          }
+      } else if (t.type == TK_STRUCT) {
+          auto st = parseStruct();
+          if (!success) {
+              return nullptr;
+          }
+          top_ast->global_space.structs.push_back(st);
+          st->space = &top_ast->global_space;
+      } else if (t.type == TK_ENUM) {
+          auto *en = parseEnum();
+          if (!success) {
+              return nullptr;
+          }
+          top_ast->enums.push_back(en);
+          en->space = &top_ast->global_space;
+      } else {
+          Error("Unknown token [%s], at the top level only structs and namespaces are allowed\n", TokenTypeToStr(t.type));
+          return nullptr;
+      }
+  }
+
+  lex = nullptr;
+  top_level_ast = nullptr;
+  return top_ast;
 }
 
 ast_namespace *Parser::find_existing_namespace(const TextType name)

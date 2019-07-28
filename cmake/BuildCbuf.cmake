@@ -14,13 +14,14 @@ macro( build_cbuf )
 
     get_filename_component( name ${CBUF_CBUF_FILE} NAME_WE )
 
+    get_filename_component( srcdir ${CBUF_CBUF_FILE} DIRECTORY )
     if( NOT CBUF_OUTPUT_DIR )
         get_filename_component( outdir ${CBUF_CBUF_FILE} DIRECTORY )
     else()
         set(outdir ${CBUF_OUTPUT_DIR})
     endif()
 
-    list(APPEND incs "-I.")
+    list(APPEND incs "-I${CMAKE_CURRENT_SOURCE_DIR}/${srcdir}")
     foreach( incdir ${CBUF_INCLUDE_DIR})
         list(APPEND incs "-I${incdir}")
     endforeach()

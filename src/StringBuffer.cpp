@@ -8,7 +8,7 @@
 
 StringBuffer::StringBuffer()
 {
-    size_t initial_size = 1024;
+    size_t initial_size = 4096;
     buffer = (char *)calloc(1, initial_size);
     end = buffer;
     end[0] = 0;

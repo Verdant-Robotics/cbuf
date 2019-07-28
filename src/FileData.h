@@ -8,7 +8,6 @@
 #undef getc
 #endif
 
-
 class FileData
 {
     char *data;

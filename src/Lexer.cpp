@@ -14,6 +14,26 @@ inline bool isWhiteSpace(char c)
 		(c == '\r'));
 }
 
+struct CompilerDirective {
+    const char *directive;
+    TOKEN_TYPE type;
+} compiler_directives[] = {
+    { "import",  TK_IMPORT},
+
+    { nullptr,   TK_INVALID }
+};
+
+static void ConvertIdentifierToCompilerDirective(Token &tok, char *buff)
+{
+    CompilerDirective *k;
+    for (k = compiler_directives; k->directive != nullptr; k++) {
+        if (!strcmp(k->directive, buff)) {
+            tok.type = k->type;
+            return;
+        }
+    }
+}
+
 struct ReservedKeyword {
     const char *keyword;
     TOKEN_TYPE type;
@@ -390,42 +410,42 @@ void Lexer::lookbehindToken(Token & tok)
 
 void Lexer::getNextTokenInternal(Token &tok)
 {
-	char c = 0;
+    char c = 0;
 
-	tok.clear();
+    tok.clear();
 
-	while(1) {
+    while(1) {
         consumeWhiteSpace();
 
         // Get the location in the token, the one for the first character of the token
         file->getLocation(tok.loc);
 
         if (!file->getc(c)) {
-			tok.type = TK_LAST_TOKEN;
-			return;
-		}
+          tok.type = TK_LAST_TOKEN;
+          return;
+        }
 
-		if (isNumber(c)) {
-            parseNumber(tok, c);
-		} else if (isAlpha(c) || (c == '_')) {
-			// this can indicate that an identifier starts
-			char buff[256] = {};
-			unsigned int i = 0;
-			buff[i++] = c;
-			while (file->peek(c) && (isAlpha(c) || isNumber(c) || (c == '_')) && (i<255)) {
-				buff[i++] = c;
-				file->getc(c);
-			}
-			tok.type = TK_IDENTIFIER;
+        if (isNumber(c)) {
+                parseNumber(tok, c);
+        } else if (isAlpha(c) || (c == '_')) {
+            // this can indicate that an identifier starts
+            char buff[256] = {};
+            unsigned int i = 0;
+            buff[i++] = c;
+            while (file->peek(c) && (isAlpha(c) || isNumber(c) || (c == '_')) && (i<255)) {
+              buff[i++] = c;
+              file->getc(c);
+            }
+            tok.type = TK_IDENTIFIER;
             buff[i] = 0;
             ConvertIdentifierToReservedKeyword(tok, buff);
             if (tok.type == TK_IDENTIFIER) tok.string = CreateTextType(pool, buff);
         } else if (c == '"') {
-			// this marks the start of a string
+            // this marks the start of a string
             char *s = new char[1024];
             bool backslash = false;
             u32 i = 0;
-			while (file->getc(c) && (c != '"') && (!isNewLine(c))) {
+            while (file->getc(c) && (c != '"') && (!isNewLine(c))) {
                 if (backslash) {
                     switch (c) {
                     case 'n':
@@ -450,18 +470,18 @@ void Lexer::getNextTokenInternal(Token &tok)
                 else {
                     s[i++] = c;
                 }
-				if (i >= 1024 - 1) {
-					Error("Found string too long to parse\n");
-					exit(1);
-				}
+                if (i >= 1024 - 1) {
+                  Error("Found string too long to parse\n");
+                  exit(1);
+                }
                 backslash = (c == '\\');
-			}
-			if (isNewLine(c)) {
-				Error("Newlines are not allowed inside a quoted string\n");
-				exit(1);
-			}
+            }
+            if (isNewLine(c)) {
+              Error("Newlines are not allowed inside a quoted string\n");
+              exit(1);
+            }
             s[i++] = 0;
-			tok.type = TK_STRING;
+            tok.type = TK_STRING;
             tok.string = CreateTextType(pool, s);
             delete [] s;
             return;
@@ -479,7 +499,6 @@ void Lexer::getNextTokenInternal(Token &tok)
                 Error("Character definitions can only be a single character\n");
             }
             return;
-/*            
         } else if (c == '#') {
             char buff[256] = {};
             unsigned int i = 0;
@@ -494,7 +513,6 @@ void Lexer::getNextTokenInternal(Token &tok)
                 Error("Found invalid compiler directive: #%s\n", buff);
             }
             return;
-*/            
         } else {
             // we are going to do a bit of lookahead in the string
             char input[4] = {};
@@ -548,11 +566,11 @@ void Lexer::getNextTokenInternal(Token &tok)
             }
         }
                         
-		if (tok.type != TK_INVALID) {
-			return;
-			// if we have a valid token return it, otherwise continue. This handles comments, etc
-		}
-	}
+        if (tok.type != TK_INVALID) {
+          return;
+          // if we have a valid token return it, otherwise continue. This handles comments, etc
+        }
+    }
 }
 
 void Lexer::lookaheadToken(Token & tok)

@@ -1,4 +1,4 @@
-    #pragma once
+#pragma once
 
 #include "Token.h"
 #include "FileData.h"
