@@ -45,7 +45,7 @@ void Interp::ErrorWithLoc(const SrcLocation& loc, const FileData* file, const ch
     va_end(args);
 }
 
-void Interp::ErrorWithLoc(const ast_element* elem, const char *msg, ...)
+void Interp::Error(const ast_element* elem, const char *msg, ...)
 {
     va_list args;
     const SrcLocation& loc = elem->loc;
@@ -56,7 +56,7 @@ void Interp::ErrorWithLoc(const ast_element* elem, const char *msg, ...)
     va_end(args);
 }
 
-void Interp::ErrorWithLoc(const ast_struct* st, const char *msg, ...)
+void Interp::Error(const ast_struct* st, const char *msg, ...)
 {
     va_list args;
     const SrcLocation& loc = st->loc;
@@ -67,7 +67,7 @@ void Interp::ErrorWithLoc(const ast_struct* st, const char *msg, ...)
     va_end(args);
 }
 
-void Interp::ErrorWithLoc(const ast_enum* en, const char *msg, ...)
+void Interp::Error(const ast_enum* en, const char *msg, ...)
 {
     va_list args;
     const SrcLocation& loc = en->loc;

@@ -50,13 +50,9 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable, Interp* interp)
         }
         if (elem->type == TYPE_CUSTOM) {
             if (!symtable->find_symbol(elem)) {
-                // This change will support the cub to cbuf inclusion, assuming that
-                // included messages are simple. That is normally the case for us,
-                // even through a complex assumption would be safer and more encompassing
-                continue;
-                fprintf(stderr, "Struct %s, element %s was referencing type %s and could not be found\n",
+                interp->Error(elem, "Struct %s, element %s was referencing type %s and could not be found\n",
                     st->name, elem->name, elem->custom_name);
-                exit(-1);
+                return false;
             }
             auto *inner_st = symtable->find_struct(elem);
             if (inner_st == nullptr) {
@@ -140,6 +136,10 @@ int main(int argc, char **argv)
     if (!bret) return -1;
 
     loop_all_structs(top_ast, &symtable, &interp, compute_simple);
+    if (interp.has_error()) {
+      fprintf(stderr, "Error during variable checking:\n%s\n", interp.getErrorString());
+      return -1;
+    }
     loop_all_structs(top_ast, &symtable, &interp, compute_hash);
 /*
     AstPrinter printer;
