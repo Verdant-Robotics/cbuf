@@ -10,7 +10,6 @@ class AstPrinter
     StringBuffer *buffer;
     SymbolTable *sym = nullptr;
     std::map<void *, int> printed_types;
-    ast_namespace *currentsp = nullptr;
 
     void print_elem(ast_element *elem);
     void print_enum(ast_enum *enm);

@@ -101,8 +101,6 @@ void AstPrinter::print_struct(ast_struct *st)
 
 void AstPrinter::print_namespace(ast_namespace *sp)
 {
-    ast_namespace *oldsp = currentsp;
-    currentsp = sp;
     printed_types[sp] = 1;
     if (strcmp(sp->name, GLOBAL_NAMESPACE)) {
       buffer->print("namespace %s {\n", sp->name);
