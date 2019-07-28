@@ -1,8 +1,8 @@
 cmake_minimum_required( VERSION 3.2.0 )
 
 include(BuildCbuf)
-build_cbuf( samples/image.cbuf )
-build_cbuf( samples/inctype.cbuf )
+build_cbuf( CBUF_FILE samples/image.cbuf )
+build_cbuf( CBUF_FILE samples/inctype.cbuf )
 
 add_custom_target( generate_cbuf_test DEPENDS
   ${CMAKE_CURRENT_BINARY_DIR}/samples/image.h

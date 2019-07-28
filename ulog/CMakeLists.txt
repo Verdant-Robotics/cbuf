@@ -5,7 +5,7 @@ SET (CMAKE_CXX_FLAGS        "-std=gnu++1z -fno-omit-frame-pointer -fPIC -I/usr/l
 
 include(BuildCbuf)
 
-build_cbuf( cbufmsg/metadata.cbuf )
+build_cbuf( CBUF_FILE cbufmsg/metadata.cbuf )
 
 add_custom_target( generate_cbufulog DEPENDS
   ${CMAKE_CURRENT_BINARY_DIR}/cbufmsg/metadata.h
