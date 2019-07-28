@@ -27,15 +27,10 @@ static bool isBuiltInType(TOKEN_TYPE t)
 void Parser::ErrorWithLoc(SrcLocation &loc, const char *msg, ...)
 {
     va_list args;
-    s32 off = sprintf(errorString, "%s:%d:%d: error : ", lex->getFilename(),
-        loc.line, loc.col);
-
     va_start(args, msg);
-    off += vsprintf(errorString + off, msg, args);
+    interp->ErrorWithLoc(loc, lex->getFileData(), msg, args);
     va_end(args);
     success = false;
-    errorString += off;
-    errorString = lex->getFileData()->printLocation(loc, errorString);
 }
 
 void Parser::Error(const char *msg, ...)
@@ -43,15 +38,10 @@ void Parser::Error(const char *msg, ...)
     va_list args;
     SrcLocation loc;
     lex->getLocation(loc);
-    s32 off = sprintf(errorString, "%s:%d:%d: error : ", lex->getFilename(), 
-        loc.line, loc.col);
-
     va_start(args, msg);
-    off += vsprintf(errorString + off, msg, args);
+    interp->ErrorWithLoc(loc, lex->getFileData(), msg, args);
     va_end(args);
     success = false;
-    errorString += off;
-    errorString = lex->getFileData()->printLocation(loc, errorString);
 }
 
 bool Parser::MustMatchToken(TOKEN_TYPE type, const char *msg)
@@ -81,9 +71,20 @@ ast_element* Parser::parseElementDeclaration()
         return nullptr;
     }
     ast_element *elem = new ast_element();
+    lex->getLocation(elem->loc);
     if (t.type == TK_IDENTIFIER) {
         elem->custom_name = t.string;
         elem->type = TYPE_CUSTOM;
+        if (lex->checkToken(TK_DOUBLE_COLON)) {
+            lex->consumeToken();
+            lex->getNextToken(t);
+            if (t.type != TK_IDENTIFIER) {
+              Error("Please put a name after the namespace");
+              return nullptr;
+            }
+            elem->namespace_name = elem->custom_name;
+            elem->custom_name = t.string;
+        }
     } else {
         switch(t.type) {
         case TK_U8:
@@ -208,7 +209,9 @@ ast_struct* Parser::parseStruct()
         return nullptr;
     }
     ast_struct *nst = new ast_struct();
+    lex->getLocation(nst->loc);
     nst->name = t.string;
+    nst->file = lex->getFileData();
      
     if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a struct\n")) {
         return nullptr;
@@ -219,42 +222,11 @@ ast_struct* Parser::parseStruct()
         if (!success) {
             return nullptr;
         }
+        elem->enclosing_struct = nst;
         nst->elements.push_back(elem);
     }
     lex->consumeToken();
     return nst;
-}
-
-ast_channel* Parser::parseChannel()
-{
-    Token t;
-    lex->getNextToken(t);
-
-    if (t.type != TK_CHANNEL) {
-        Error("Keyword 'channel' expected, found %s\n", TokenTypeToStr(t.type));
-        return nullptr;
-    }
-
-    lex->getNextToken(t);
-    if (t.type != TK_IDENTIFIER) {
-        Error("After channel there has to be an identifier (name)\n");
-        return nullptr;
-    }
-    ast_channel *cn = new ast_channel();
-    cn->name = t.string;
-
-    if (!MustMatchToken(TK_COLON, "Please use colon after a channel to describe the struct the channel is composed of\n")) {
-        return nullptr;
-    }
-
-    lex->getNextToken(t);
-    if (t.type != TK_IDENTIFIER) {
-        Error("After channel there has to be an identifier (name)\n");
-        return nullptr;
-    }
-    cn->inner_struct = t.string;
-
-    return cn;
 }
 
 ast_enum* Parser::parseEnum()
@@ -274,6 +246,8 @@ ast_enum* Parser::parseEnum()
     }
     ast_enum *en = new ast_enum();
     en->name = t.string;
+    lex->getLocation(en->loc);
+    en->file = lex->getFileData();
 
     if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a namespace\n")) {
         return nullptr;
@@ -331,8 +305,11 @@ ast_namespace* Parser::parseNamespace()
         Error("After namespace there has to be an identifier (name), found: %s\n", TokenTypeToStr(t.type));
         return nullptr;
     }
-    ast_namespace *sp = new ast_namespace();
-    sp->name = t.string;
+    ast_namespace *sp = find_existing_namespace(t.string);
+    if (sp == nullptr) {
+        sp = new ast_namespace();
+        sp->name = t.string;
+    }
 
     if (!MustMatchToken(TK_OPEN_BRACKET, "Please use brackets around a namespace\n")) {
         return nullptr;
@@ -346,14 +323,7 @@ ast_namespace* Parser::parseNamespace()
             Error("Nested namespaces are not allowed");
             return nullptr;
         }
-        if (t.type == TK_CHANNEL) {
-            auto *cn = parseChannel();
-            if (!success) {
-                return nullptr;
-            }
-            sp->channels.push_back(cn);
-            cn->space = sp;
-        } else if (t.type == TK_STRUCT) {
+        if (t.type == TK_STRUCT) {
             auto *st = parseStruct();
             if (!success) {
                 return nullptr;
@@ -384,13 +354,8 @@ ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *po
 
     lex->setPoolAllocator(pool);
 
-    if (errorString == nullptr) {
-        errorString = errorStringBuffer;
-        errorString[0] = 0;
-    }
-
     if (!lex->loadString(buffer, buf_size)) {
-        errorString += sprintf(errorString, "Error: String Buffer could not be opened to be processed\n");
+        interp->Error("Error: String Buffer could not be opened to be processed\n");
         return nullptr;
     }
 
@@ -407,7 +372,9 @@ ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *po
             if (!success) {
                 return nullptr;
             }
-            top_ast->spaces.push_back(sp);
+            if (nullptr == find_existing_namespace(sp->name)) {
+                top_ast->spaces.push_back(sp);
+            }
         } else if (t.type == TK_STRUCT) {
             auto st = parseStruct();
             if (!success) {
@@ -415,12 +382,6 @@ ast_global * Parser::ParseBuffer(const char *buffer, u64 buf_size, Allocator *po
             }
             top_ast->global_space.structs.push_back(st);
             st->space = &top_ast->global_space;
-        } else if (t.type == TK_CHANNEL) {
-            auto *cn = parseChannel();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->channels.push_back(cn);
         } else if (t.type == TK_ENUM) {
             auto *en = parseEnum();
             if (!success) {
@@ -447,19 +408,16 @@ ast_global * Parser::Parse(const char *filename, Allocator *pool)
 
     lex->setPoolAllocator(pool);
 
-    if (errorString == nullptr) {
-        errorString = errorStringBuffer;
-        errorString[0] = 0;
-    }
 
     if (!lex->openFile(filename)) {
-        errorString += sprintf(errorString, "Error: File [%s] could not be opened to be processed\n", filename);
+        interp->Error("Error: File [%s] could not be opened to be processed\n", filename);
         return nullptr;
     }
 
     ast_global *top_ast = new (pool) ast_global;
     success = true;
     top_level_ast = top_ast;
+    top_ast->global_space.name = CreateTextType(pool, GLOBAL_NAMESPACE);
 
     lex->parseFile();
     while (!lex->checkToken(TK_LAST_TOKEN)) {
@@ -478,12 +436,6 @@ ast_global * Parser::Parse(const char *filename, Allocator *pool)
             }
             top_ast->global_space.structs.push_back(st);
             st->space = &top_ast->global_space;
-        } else if (t.type == TK_CHANNEL) {
-            auto *cn = parseChannel();
-            if (!success) {
-                return nullptr;
-            }
-            top_ast->channels.push_back(cn);
         } else if (t.type == TK_ENUM) {
             auto *en = parseEnum();
             if (!success) {
@@ -500,4 +452,14 @@ ast_global * Parser::Parse(const char *filename, Allocator *pool)
     this->lex = nullptr;
     top_level_ast = nullptr;
     return top_ast;
+}
+
+ast_namespace *Parser::find_existing_namespace(const TextType name)
+{
+    for(auto*sp : top_level_ast->spaces) {
+        if (!strcmp(sp->name, name)) {
+            return sp;
+        }
+    }
+    return nullptr;
 }

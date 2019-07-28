@@ -55,7 +55,7 @@ void StringBuffer::print(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     if (ident != 0) {
-        realloc_buffer(ident+1);
+        realloc_buffer(ident+5);
         for(int i = 0; i<ident; i++) *end++ = ' ';
         rem_size -= ident;
     }

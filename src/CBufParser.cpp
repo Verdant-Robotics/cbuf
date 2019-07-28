@@ -5,6 +5,7 @@
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "cbuf_preamble.h"
+#include "Interp.h"
 
 #include <string.h>
 
@@ -199,20 +200,20 @@ void process_element_short_string_csv(const ast_element* elem, u8* &bin_buffer, 
 
 
 template< typename T >
-void loop_all_structs(ast_global *ast, SymbolTable *symtable, T func)
+void loop_all_structs(ast_global *ast, SymbolTable *symtable, Interp *interp, T func)
 {
     for(auto *sp: ast->spaces) {
         for(auto *st: sp->structs) {
-            func(st, symtable);
+            func(st, symtable, interp);
         }
     }
 
     for(auto *st: ast->global_space.structs) {
-        func(st, symtable);
+        func(st, symtable, interp);
     }
 }
 
-bool compute_simple(ast_struct *st, SymbolTable *symtable)
+bool compute_simple(ast_struct *st, SymbolTable *symtable, Interp *interp)
 {
     if (st->simple_computed) return st->simple;
     st->simple = true;
@@ -223,17 +224,17 @@ bool compute_simple(ast_struct *st, SymbolTable *symtable)
             return false;
         }
         if (elem->type == TYPE_CUSTOM) {
-            if (!symtable->find_symbol(elem->custom_name)) {
+            if (!symtable->find_symbol(elem)) {
                 fprintf(stderr, "Struct %s, element %s was referencing type %s and could not be found\n",
                     st->name, elem->name, elem->custom_name);
                 exit(-1);
             }
-            auto *inner_st = symtable->find_struct(elem->custom_name);
+            auto *inner_st = symtable->find_struct(elem);
             if (inner_st == nullptr) {
                 // Must be an enum, it is simple
                 continue;
             }
-            bool elem_simple = compute_simple(inner_st, symtable);
+            bool elem_simple = compute_simple(inner_st, symtable, interp);
             if (!elem_simple) {
                 st->simple = false;
                 st->simple_computed = true;
@@ -267,20 +268,23 @@ CBufParser::~CBufParser()
 bool CBufParser::ParseMetadata(const std::string& metadata, const std::string& struct_name)
 {
   Parser parser;
+  Interp interp;
+
+  parser.interp = &interp;
   ast = parser.ParseBuffer(metadata.c_str(), metadata.size()-1, pool);
   if (ast == nullptr || !parser.success) {
-    fprintf(stderr, "Error during parsing:\n%s\n", parser.getErrorString());
+    fprintf(stderr, "Error during parsing:\n%s\n", interp.getErrorString());
     return false;
   }
 
   sym = new SymbolTable;
   bool bret = sym->initialize(ast);
   if (!bret) {
-      fprintf(stderr, "Error during symbol table parsing:\n%s\n", parser.getErrorString());
+      fprintf(stderr, "Error during symbol table parsing:\n%s\n", interp.getErrorString());
       return false;
   }
 
-  loop_all_structs(ast, sym, compute_simple);
+  loop_all_structs(ast, sym, &interp, compute_simple);
 
   main_struct_name = struct_name;
   return true;
@@ -313,11 +317,8 @@ bool CBufParser::PrintCSVHeader()
   return true;
 }
 
-bool CBufParser::PrintCSVInternal(const char *st_name)
+bool CBufParser::PrintCSVInternal(const ast_struct* st)
 {
-  auto tname = CreateTextType(pool, st_name);
-  ast_struct *st = sym->find_struct(tname);
-
   // All structs have a preamble, skip it
   u32 sizeof_preamble = sizeof(cbuf_preamble); // 8 bytes hash, 4 bytes size
   buffer += sizeof_preamble;
@@ -349,11 +350,11 @@ bool CBufParser::PrintCSVInternal(const char *st_name)
       }
       case TYPE_CUSTOM:
       {
-          auto *inst = sym->find_struct(elem->custom_name);
+          auto *inst = sym->find_struct(elem);
           if (inst != nullptr) {
-              PrintCSVInternal(elem->custom_name);
+              PrintCSVInternal(inst);
           } else {
-              auto *enm = sym->find_enum(elem->custom_name);
+              auto *enm = sym->find_enum(elem);
               if (enm == nullptr) {
                   fprintf(stderr, "Enum %s could not be parsed\n", elem->custom_name);
                   return false;
@@ -370,11 +371,8 @@ bool CBufParser::PrintCSVInternal(const char *st_name)
   return true;
 }
 
-bool CBufParser::PrintInternal(const char* st_name)
+bool CBufParser::PrintInternal(const ast_struct* st)
 {
-  auto tname = CreateTextType(pool, st_name);
-  ast_struct *st = sym->find_struct(tname);
-
   // All structs have a preamble, skip it
   u32 sizeof_preamble = sizeof(cbuf_preamble); // 8 bytes hash, 4 bytes size
   buffer += sizeof_preamble;
@@ -405,11 +403,11 @@ bool CBufParser::PrintInternal(const char* st_name)
       }
       case TYPE_CUSTOM:
       {
-          auto *inst = sym->find_struct(elem->custom_name);
+          auto *inst = sym->find_struct(elem);
           if (inst != nullptr) {
-              PrintInternal(elem->custom_name);
+              PrintInternal(inst);
           } else {
-              auto *enm = sym->find_enum(elem->custom_name);
+              auto *enm = sym->find_enum(elem);
               if (enm == nullptr) {
                   fprintf(stderr, "Enum %s could not be parsed\n", elem->custom_name);
                   return false;
@@ -424,12 +422,27 @@ bool CBufParser::PrintInternal(const char* st_name)
   return true;
 }
 
+ast_struct* CBufParser::decompose_and_find(const char *st_name)
+{
+  char namesp[128] = {};
+  auto *sep = strchr(st_name, ':');
+  if (sep == nullptr) {
+    auto tname = CreateTextType(pool, st_name);
+    return sym->find_struct(tname);
+  }
+
+  for(int i = 0; st_name[i] != ':'; i++) namesp[i] = st_name[i];
+  auto tname = CreateTextType(pool, sep+2);
+  return sym->find_struct(tname, namesp);
+}
+
+
 // Returns the number of bytes consumed
 unsigned int CBufParser::Print(const char* st_name, unsigned char *buffer, size_t buf_size)
 {
   this->buffer = buffer;
   this->buf_size = buf_size;
-  if (!PrintInternal(st_name)) {
+  if (!PrintInternal(decompose_and_find(st_name))) {
     return 0;
   }
   this->buffer = nullptr;
@@ -441,7 +454,7 @@ unsigned int CBufParser::PrintCSV(const char* st_name, unsigned char *buffer, si
 {
   this->buffer = buffer;
   this->buf_size = buf_size;
-  if (!PrintCSVInternal(st_name)) {
+  if (!PrintCSVInternal(decompose_and_find(st_name))) {
     return 0;
   }
   this->buffer = nullptr;
