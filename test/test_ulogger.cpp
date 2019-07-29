@@ -7,7 +7,6 @@
 #include <thread>
 #include <experimental/filesystem> //#include <filesystem>
 
-#define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include "ulogger.h"
 #include "cbuf_stream.h"
@@ -86,9 +85,3 @@ TEST_CASE( "Record many messages", "[ULogger]" ) {
     unlink( filename.c_str() );
 }
 
-
-int main(int argc, char **argv)
-{
-  int result = Catch::Session().run( argc, argv );
-  return result;
-}
