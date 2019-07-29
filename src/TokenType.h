@@ -90,6 +90,8 @@ enum TOKEN_TYPE {
 
     TK_STRUCT,
 
+    // Import another file
+    TK_IMPORT,
     // Comment tokens, not really used
 
     TK_OPEN_BLOCK_COMMENT,

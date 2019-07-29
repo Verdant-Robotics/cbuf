@@ -271,7 +271,7 @@ bool CBufParser::ParseMetadata(const std::string& metadata, const std::string& s
   Interp interp;
 
   parser.interp = &interp;
-  ast = parser.ParseBuffer(metadata.c_str(), metadata.size()-1, pool);
+  ast = parser.ParseBuffer(metadata.c_str(), metadata.size()-1, pool, nullptr);
   if (ast == nullptr || !parser.success) {
     fprintf(stderr, "Error during parsing:\n%s\n", interp.getErrorString());
     return false;
