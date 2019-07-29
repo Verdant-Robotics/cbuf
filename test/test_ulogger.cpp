@@ -44,11 +44,11 @@ TEST_CASE( "Record one message", "[ULogger]" ) {
     //printf( "the filename is %s\n", filename.c_str() );
     REQUIRE( filename.size() != 0 ); 
 
+    // Note, no calls to getULogger() are valid after endLogging
     ULogger::endLogging();
 
-    std::string filename2 = ULogger::getULogger()->getFilename();
     //printf( "the filename is %s\n", filename2.c_str() );
-    REQUIRE( std::experimental::filesystem::exists( filename2.c_str() ) );
+    REQUIRE( std::experimental::filesystem::exists( filename.c_str() ) );
 
     // cleanup test residue
     unlink( filename.c_str() );
@@ -76,11 +76,11 @@ TEST_CASE( "Record many messages", "[ULogger]" ) {
     //printf( "the filename is %s\n", filename.c_str() );
     REQUIRE( filename.size() != 0 ); 
 
+    // Note, no calls to getULogger() are valid after endLogging
     ULogger::endLogging();
 
-    std::string filename2 = ULogger::getULogger()->getFilename();
     //printf( "the filename is %s\n", filename2.c_str() );
-    REQUIRE( std::experimental::filesystem::exists( filename2.c_str() ) );
+    REQUIRE( std::experimental::filesystem::exists( filename.c_str() ) );
 
     // cleanup test residue
     unlink( filename.c_str() );
