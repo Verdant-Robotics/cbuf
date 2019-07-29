@@ -150,7 +150,8 @@ int main(int argc, char **argv)
     parser.interp = &interp;
     parser.args = &args;
 
-    // checkParsing(argv[1]);
+    // Debug statements
+    // for(auto f: args.incs) fprintf(stderr, "Include folders: %s\n", f);
 
     auto top_ast = parser.Parse(args.srcfile, &pool);
     if (!parser.success) {
