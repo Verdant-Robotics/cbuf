@@ -11,8 +11,6 @@
 #include <assert.h>
 #include "cbuf_preamble.h"
 
-class ULogger;
-
 static double now()
 {
   struct timespec ts;
