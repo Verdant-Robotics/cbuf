@@ -8,6 +8,7 @@ struct Args
 {
     Array<const char *> incs;
     const char *srcfile = nullptr;
+    const char *outfile = nullptr;
 };
 
 class Parser
