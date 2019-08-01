@@ -119,6 +119,13 @@ bool parseArgs(Args& args, int argc, char** argv)
   for(int i=1; i<argc; i++) {
     if ((argv[i][0] == '-') && (argv[i][1] == 'I')) {
       args.incs.push_back(&argv[i][2]);
+    } else if ((argv[i][0] == '-') && (argv[i][1] == 'o')) {
+      if (i+1 == argc) {
+        fprintf(stderr, "The -o option needs a filename after it\n");
+        return false;
+      }
+      args.outfile = argv[i+1];
+      i++;
     } else {
       if (args.srcfile == nullptr) {
         args.srcfile = argv[i];
@@ -132,7 +139,7 @@ bool parseArgs(Args& args, int argc, char** argv)
   if (args.srcfile == nullptr) {
     fprintf(stderr, "Two input files are not supported\n");
     return false;
-  }
+  }  
   return true;
 }
 
@@ -180,6 +187,16 @@ int main(int argc, char **argv)
     CPrinter printer;
     StringBuffer buf;
     printer.print(&buf, top_ast, &symtable);
-    printf("%s", buf.get_buffer());
+    if (args.outfile != nullptr) {
+      FILE *f = fopen(args.outfile, "w");
+      if (f == nullptr) {
+        fprintf(stderr, "File %s could not be opened for writing\n", args.outfile);
+        return -1;
+      }
+      fprintf(f, "%s", buf.get_buffer());
+      fclose(f);
+    } else {
+      printf("%s", buf.get_buffer());
+    }
     return 0;
 }
