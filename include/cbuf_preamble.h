@@ -4,7 +4,11 @@
 
 #define CBUF_MAGIC uint32_t(('V'<<24) | ('D'<<16) | ('N'<<8) | 'T')
 
-struct __attribute__ ((__packed__)) cbuf_preamble
+#ifndef ATTR_PACKED
+#define ATTR_PACKED __attribute__ ((__packed__))
+#endif
+
+struct ATTR_PACKED cbuf_preamble
 {
     uint32_t magic;
     uint32_t size;

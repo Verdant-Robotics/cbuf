@@ -2,10 +2,14 @@
 
 #include <string>
 
+#ifndef ATTR_PACKED
+#define ATTR_PACKED __attribute__ ((__packed__))
+#endif
+
 /// This class supports some interactions with the std string,
 /// but it has static allocation so we can easily serialize it
 template < int nchars >
-class __attribute__ ((__packed__)) VString {
+class ATTR_PACKED VString {
   char buffer[nchars+1];
 
   void fill_buffer(const char *s)

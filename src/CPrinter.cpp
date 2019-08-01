@@ -431,7 +431,10 @@ void CPrinter::print(ast_struct *st)
   if (st->file != main_file) return;
 
   if (st->simple) {
-    buffer->print("struct __attribute__ ((__packed__)) %s {\n", st->name);
+    buffer->print("#ifndef ATTR_PACKED\n");
+    buffer->print("#define ATTR_PACKED __attribute__ ((__packed__))\n");
+    buffer->print("#endif\n\n");    
+    buffer->print("struct ATTR_PACKED %s {\n", st->name);
   } else {
     buffer->print("struct %s {\n", st->name);
   }
