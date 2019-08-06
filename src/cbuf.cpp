@@ -158,7 +158,8 @@ int main(int argc, char **argv)
     parser.args = &args;
 
     // Debug statements
-    // for(auto f: args.incs) fprintf(stderr, "Include folders: %s\n", f);
+    //fprintf(stderr, "For %s:\n", args.srcfile);
+    //for(auto f: args.incs) fprintf(stderr, "  Include folders: %s\n", f);
 
     auto top_ast = parser.Parse(args.srcfile, &pool);
     if (!parser.success) {
