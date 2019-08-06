@@ -461,7 +461,7 @@ void CPrinter::print(ast_struct *st)
     buffer->print("static constexpr const char* TYPE_STRING = \"");
     if (strcmp(st->space->name, GLOBAL_NAMESPACE)) buffer->print_no("%s::", st->space->name);
     buffer->print_no("%s\";\n", st->name);
-    
+    buffer->print("static bool is_simple() { return %s; }\n", (st->simple ? "true" : "false"));
     buffer->print("\n");
 
     // Encode and decode
