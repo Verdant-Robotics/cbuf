@@ -124,6 +124,9 @@ std::string ULogger::getSessionPath()
   return result;    
 }
 
+// Glibc provides this
+extern char *__progname;
+
 void ULogger::fillFilename()
 {
   time_t rawtime;
@@ -133,8 +136,8 @@ void ULogger::fillFilename()
 
   char buffer[PATH_MAX];
   memset(buffer, 0, sizeof(buffer));
-  sprintf(buffer, "vdnt.%d.%02d.%02d.%02d.%02d.%02d.ulog",
-          info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
+  sprintf(buffer, "%s.%d.%02d.%02d.%02d:%02d:%02d.ulog",
+          __progname, info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 
   filename = getSessionPath() + "/" + buffer;
 }
