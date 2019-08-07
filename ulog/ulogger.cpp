@@ -8,6 +8,7 @@
 #include <experimental/filesystem> //#include <filesystem>
 #include <fstream>
 #include <streambuf>
+#include "nodelib.h"
 
 // stat() check if directory exists
 static  
@@ -50,6 +51,26 @@ void ULogger::setSessionToken(const std::string& token)
 }
 
 std::string ULogger::getSessionToken()
+{
+  std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
+  // WIP: if and when the logdriving executable can stop recording and start the next one
+  // without re-starting the executable,  then use the executable's process ID as the session token.
+  // For now, just use the year_month_day  as the session.
+  if( sessiontoken.empty() ) {
+    node::nodelib nlib;
+
+    if (node::SUCCESS != nlib.open()) {
+      return getSessionTokenNodeSrv();
+    }
+
+    if (node::SUCCESS != nlib.get_session_path(sessiontoken)) {
+      return getSessionTokenNodeSrv();
+    }
+  }
+  return sessiontoken;
+}
+
+std::string ULogger::getSessionTokenNodeSrv()
 {
   std::lock_guard<std::recursive_mutex> guard(g_file_mutex);
   // WIP: if and when the logdriving executable can stop recording and start the next one
