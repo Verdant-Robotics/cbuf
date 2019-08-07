@@ -19,6 +19,7 @@ class CBufParser
 
   bool PrintInternal(const ast_struct* st);
   bool PrintCSVInternal(const ast_struct* st);
+  bool PrintCSVHeaderInternal(const ast_struct *st, const std::string& prefix);
   std::string main_struct_name;
 
   ast_struct* decompose_and_find(const char *st_name);

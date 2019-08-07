@@ -290,14 +290,9 @@ bool CBufParser::ParseMetadata(const std::string& metadata, const std::string& s
   return true;
 }
 
-bool CBufParser::PrintCSVHeader()
+bool CBufParser::PrintCSVHeaderInternal(const ast_struct *st, const std::string& prefix)
 {
-  ast_struct *st = decompose_and_find(main_struct_name.c_str());
-  if (st == nullptr) {
-    fprintf(stderr, "Could not find struct %s on the symbol table\n",
-      main_struct_name.c_str());
-    return false;
-  }
+  if (st == nullptr) return false;
 
   for(int elem_idx = 0; elem_idx < st->elements.size(); elem_idx++) {
     auto& elem = st->elements[elem_idx];
@@ -308,15 +303,40 @@ bool CBufParser::PrintCSVHeader()
       }
       if (elem->array_suffix->size <= 5) {
         for(int i =0; i<elem->array_suffix->size; i++) {
-          printf("%s[%d]", elem->name, i);
+          printf("%s%s[%d]", prefix.c_str(), elem->name, i);
           if (i+1<elem->array_suffix->size) printf(",");
         }
       }
     } else {
-      printf("%s", elem->name);
+      if (elem->type == TYPE_CUSTOM) {
+        auto* inst = sym->find_struct(elem);
+        if (inst == nullptr) {
+          printf("ERROR, struct %s could not be found\n", elem->custom_name);
+          return false;
+        }
+        std::string prefix_new = prefix + std::string(elem->name) + ".";
+        bool bret = PrintCSVHeaderInternal(inst, prefix_new);
+        if (!bret) return false;
+      } else {
+        printf("%s%s", prefix.c_str(), elem->name);
+      }
     }
     if (elem_idx +1 < st->elements.size()) printf(",");
   }
+  return true;
+}
+
+bool CBufParser::PrintCSVHeader()
+{
+  ast_struct *st = decompose_and_find(main_struct_name.c_str());
+  if (st == nullptr) {
+    fprintf(stderr, "Could not find struct %s on the symbol table\n",
+      main_struct_name.c_str());
+    return false;
+  }
+
+  PrintCSVHeaderInternal(st, "");
+
   printf("\n");
   return true;
 }
