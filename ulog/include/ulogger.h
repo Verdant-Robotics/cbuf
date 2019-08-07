@@ -41,6 +41,9 @@ public:
   std::string getSessionPath();
   void setSessionToken(const std::string& token);
 
+  // Special class to call get session token from the nodesrv process
+  std::string getSessionTokenNodeSrv();
+
   // No public constructors, this is a singleton
   static ULogger* getULogger();
 
