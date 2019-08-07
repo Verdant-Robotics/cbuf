@@ -58,6 +58,12 @@ public:
     auto stsize = (unsigned int)member->encode_size();
     uint64_t buffer_handle =
         ringbuffer.alloc(stsize, member->cbuf_string, member->TYPE_STRING);
+    if (member->preamble.magic != CBUF_MAGIC) {
+      // Some packets skip default initialization, ensure it here
+      member->preamble.magic = CBUF_MAGIC;
+      member->preamble.size = stsize;
+      member->preamble.hash = member->hash();
+    }
 
     if (!member->encode((char*)ringbuffer.handleToAddress(buffer_handle), stsize)) {
       ringbuffer.populate(buffer_handle);

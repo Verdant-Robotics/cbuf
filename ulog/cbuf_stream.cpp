@@ -27,6 +27,7 @@ double cbuf_ostream::now() const
 void cbuf_ostream::serialize_metadata(const char *msg_meta, uint64_t hash, const char *msg_name)
 {
   assert(dictionary.count(hash) == 0);
+  assert(hash != 0);
 
   cbufmsg::metadata mdata;
   mdata.preamble.packet_timest = now();
