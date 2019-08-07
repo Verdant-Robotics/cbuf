@@ -292,8 +292,12 @@ bool CBufParser::ParseMetadata(const std::string& metadata, const std::string& s
 
 bool CBufParser::PrintCSVHeader()
 {
-  auto tname = CreateTextType(pool, main_struct_name.c_str());
-  ast_struct *st = sym->find_struct(tname);
+  ast_struct *st = decompose_and_find(main_struct_name.c_str());
+  if (st == nullptr) {
+    fprintf(stderr, "Could not find struct %s on the symbol table\n",
+      main_struct_name.c_str());
+    return false;
+  }
 
   for(int elem_idx = 0; elem_idx < st->elements.size(); elem_idx++) {
     auto& elem = st->elements[elem_idx];
