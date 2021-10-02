@@ -1,47 +1,117 @@
-cmake_minimum_required( VERSION 3.2.0 )
+cmake_minimum_required(VERSION 3.13.0)
 
-project( cbuf )
+project(cbuf)
 
-list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" )
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(FetchDependency)
 
-fetch_dependency( vlog "https://git.martian.ag/open-source/vlog.git" "master" )
+fetch_dependency(vlog "https://git.martian.ag/open-source/vlog.git" "master")
 
+# optional hjson package, if found it exposes more functionality on the CBufParser class
+find_package(hjson)
 
-option(CBUF_ENABLE_TESTS "Enable Tests" ON)
-if (${CBUF_ENABLE_TESTS})
-    enable_testing()
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
+  add_compile_options(-march=x86-64-v3)
+else()
+  add_compile_options(-mcpu=native)
 endif()
 
-set( CBUF_PARSE_SRCS
-  src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp
-  src/Parser.cpp src/Allocator.cpp src/StringBuffer.cpp src/SymbolTable.cpp
-  src/TextType.cpp src/Token.cpp src/CBufParser.cpp src/Interp.cpp
-)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} \
+    -Werror \
+    -Wall \
+    -Wextra \
+    -Weverything \
+    -Werror=return-type \
+    -Wno-c++98-compat \
+    -Wno-c++98-compat-pedantic \
+    -Wno-ctad-maybe-unsupported \
+    -Wno-global-constructors \
+    -Wno-exit-time-destructors \
+    -Wno-double-promotion \
+    -Wno-gnu-zero-variadic-macro-arguments")
 
-set( CBUF_HDRS include/cbuf_preamble.h include/vstring.h include/CBufParser.h )
+# TODO(jhurliman): Fix these warnings
+set(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} \
+    -Wno-unused-parameter \
+    -Wno-weak-vtables \
+    -Wno-old-style-cast \
+    -Wno-padded \
+    -Wno-missing-prototypes \
+    -Wno-shadow \
+    -Wno-sign-conversion \
+    -Wno-missing-variable-declarations \
+    -Wno-missing-noreturn \
+    -Wno-switch-enum \
+    -Wno-unreachable-code \
+    -Wno-shorten-64-to-32 \
+    -Wno-zero-as-null-pointer-constant \
+    -Wno-sign-compare \
+    -Wno-cast-align \
+    -Wno-packed \
+    -Wno-implicit-int-conversion \
+    -Wno-float-equal \
+    -Wno-covered-switch-default \
+    -Wno-unused-macros \
+    -Wno-ignored-qualifiers \
+    -Wno-cast-qual \
+    -Wno-disabled-macro-expansion \
+    -Wno-unreachable-code-return \
+    -Wno-zero-as-null-pointer-constant \
+    -Wno-deprecated-declarations")
 
-set( CBUF_SRCS src/cbuf.cpp )
+set(CBUF_PARSE_SRCS
+    src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp src/Parser.cpp src/Allocator.cpp
+    src/StringBuffer.cpp src/SymbolTable.cpp src/TextType.cpp src/Token.cpp src/CBufParser.cpp src/Interp.cpp
+    src/StdStringBuffer.cpp)
 
-add_library( cbuf_parse STATIC ${CBUF_PARSE_SRCS} ${CBUF_HDRS} )
-target_include_directories(cbuf_parse PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
+set(CBUF_HDRS include/cbuf_preamble.h include/vstring.h include/CBufParser.h)
 
+set(CBUF_SRCS src/cbuf.cpp)
 
-add_executable( cbuf ${CBUF_SRCS} )
-target_include_directories(cbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
-target_link_libraries(cbuf PRIVATE cbuf_parse )
+add_library(cbuf_parse STATIC ${CBUF_PARSE_SRCS} ${CBUF_HDRS})
+target_include_directories(cbuf_parse PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Add a shared version of cbuf_parse for those programs needing position independent code
+add_library(cbuf_parse_dynamic SHARED ${CBUF_PARSE_SRCS} ${CBUF_HDRS})
+target_include_directories(cbuf_parse_dynamic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+install(TARGETS cbuf_parse_dynamic DESTINATION lib)
+
+if(hjson_FOUND)
+  target_compile_definitions(cbuf_parse PUBLIC HJSON_PRESENT)
+  target_link_libraries(cbuf_parse hjson)
+  target_compile_definitions(cbuf_parse_dynamic PUBLIC HJSON_PRESENT)
+  target_link_libraries(cbuf_parse_dynamic hjson)
+endif()
+
+add_executable(cbuf ${CBUF_SRCS})
+target_include_directories(cbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(cbuf PRIVATE cbuf_parse)
 target_link_libraries(cbuf PRIVATE stdc++fs)
 
-if (NOT TARGET cbuf_lib)
-    add_library( cbuf_lib INTERFACE )
-    add_library( cbuf_lib::cbuf_lib ALIAS cbuf_lib )
-    target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include )
+if(NOT TARGET cbuf_lib)
+  add_library(cbuf_lib INTERFACE)
+  add_library(cbuf_lib::cbuf_lib ALIAS cbuf_lib)
+  target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 endif()
 
-add_subdirectory( ulog )
+option(ENABLE_CBUF_TESTS "Enable Tests" OFF)
 
-if (${CBUF_ENABLE_TESTS})
-    add_subdirectory( test )
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  set(CBUF_MAIN_PROJECT TRUE)
+else()
+  set(CBUF_MAIN_PROJECT FALSE)
 endif()
 
+if(${ENABLE_CBUF_TESTS} OR ${CBUF_MAIN_PROJECT})
+  enable_testing()
+endif()
+
+add_subdirectory(ulog)
+add_subdirectory(test)

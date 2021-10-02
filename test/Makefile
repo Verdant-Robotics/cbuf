@@ -1,11 +1,11 @@
 # Makefile for VRM
 
 TARGET := vrm_test
-CFLAGS = 
-LFLAGS = 
-LIBS = 
-SOURCES = 
-INCLUDES = -I../include 
+CFLAGS =
+LFLAGS =
+LIBS =
+SOURCES =
+INCLUDES = -I../include
 CC = g++
 BUILDDIR = obj
 TARGETDIR = bin

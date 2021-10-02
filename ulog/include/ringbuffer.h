@@ -2,19 +2,20 @@
 #define RINGBUFFER_H
 
 #include <unistd.h>
+
 #include <array>
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <unordered_map>
-#include <optional>
 
 template <int Size>
 class RingBuffer {
- private:
+private:
   enum class AllocationType { Empty = 1, Dummy = 2, Populated = 3 };
   struct Allocation {
     uint32_t size_;
@@ -24,18 +25,14 @@ class RingBuffer {
     const char* metadata_ = nullptr;
     const char* type_name_ = nullptr;
 
-    Allocation(uint32_t size,
-               uint32_t begin,
-               AllocationType type,
-               uint64_t id,
-               const char* metadata,
+    Allocation(uint32_t size, uint32_t begin, AllocationType type, uint64_t id, const char* metadata,
                const char* type_name)
-        : size_(size),
-          begin_(begin),
-          type_(type),
-          id_(id),
-          metadata_(metadata),
-          type_name_(type_name) {}
+        : size_(size)
+        , begin_(begin)
+        , type_(type)
+        , id_(id)
+        , metadata_(metadata)
+        , type_name_(type_name) {}
 
     Allocation() {}
   };
@@ -51,7 +48,7 @@ class RingBuffer {
   std::atomic<uint64_t> allocationId;
   std::atomic<uint64_t> lastUnfreedId;
 
- public:
+public:
   struct Buffer {
     uint8_t* loc;
     uint32_t size;
@@ -59,26 +56,24 @@ class RingBuffer {
     const char* type_name;
   };
   RingBuffer()
-      : m_buf(),
-        m_write(0),
-        lk(),
-        freecv(),
-        fullcv(),
-        m_sizeAllocated(0),
-        allocations(),
-        alloclock(),
-        allocationId(0),
-        lastUnfreedId(0) {}
+      : m_buf()
+      , m_write(0)
+      , lk()
+      , freecv()
+      , fullcv()
+      , m_sizeAllocated(0)
+      , allocations()
+      , alloclock()
+      , allocationId(0)
+      , lastUnfreedId(0) {}
   ~RingBuffer() {}
 
   uint32_t size() { return m_sizeAllocated.load(); }
-  std::optional<Allocation> alloc_inner(int size,
-                                        const char* metadata,
-                                        const char* type_name) {
-    std::unique_lock uniquelock(lk);
+  std::optional<Allocation> alloc_inner(int size, const char* metadata, const char* type_name) {
+    std::unique_lock<std::mutex> uniquelock(lk);
 
     freecv.wait(uniquelock, [&]() {
-      if ((Size - m_sizeAllocated) > size) {
+      if ((Size - int(m_sizeAllocated)) > size) {
         return true;
       } else {
         // std::cout << "can't push: " << Size - m_sizeAllocated << " " << size
@@ -88,8 +83,7 @@ class RingBuffer {
     });
 
     if (size != 0 && m_write + size <= Size) {
-      Allocation a(size, m_write, AllocationType::Empty, allocationId++,
-                   metadata, type_name);
+      Allocation a(size, m_write, AllocationType::Empty, allocationId++, metadata, type_name);
       alloclock.lock();
       allocations[a.id_] = a;
       alloclock.unlock();
@@ -98,13 +92,12 @@ class RingBuffer {
       uniquelock.unlock();
       return std::optional<Allocation>(a);
     } else {
-      Allocation a(Size - m_write, m_write, AllocationType::Dummy,
-                   allocationId++, nullptr, nullptr);
+      Allocation a(Size - m_write, m_write, AllocationType::Dummy, allocationId++, nullptr, nullptr);
       alloclock.lock();
       allocations[a.id_] = a;
       alloclock.unlock();
-      //hack for teardown
-      m_sizeAllocated += (a.size_ == 0?1:a.size_);
+      // hack for teardown
+      m_sizeAllocated += (a.size_ == 0 ? 1 : a.size_);
       m_write = 0;
       uniquelock.unlock();
       return std::optional<Allocation>();
@@ -168,8 +161,7 @@ class RingBuffer {
 
         if (a.type_ == AllocationType::Populated) {
           uniquelock.unlock();
-          return std::optional<Buffer>({handleToAddress(lastUnfreedId), a.size_,
-                                        a.metadata_, a.type_name_});
+          return std::optional<Buffer>({handleToAddress(lastUnfreedId), a.size_, a.metadata_, a.type_name_});
         } else {
           uniquelock.unlock();
           return std::optional<Buffer>({nullptr, 0, nullptr, nullptr});
@@ -216,10 +208,7 @@ class RingBuffer {
     }
   }
 
-  bool consume(uint8_t* dst,
-               uint32_t& size,
-               const char** metadata,
-               const char** type_name) {
+  bool consume(uint8_t* dst, uint32_t& size, const char** metadata, const char** type_name) {
     std::unique_lock uniquelock(lk);
 
     fullcv.wait(uniquelock, [&]() {

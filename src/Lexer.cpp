@@ -1,610 +1,591 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "Lexer.h"
+
 #include <assert.h>
 #include <math.h>
 #include <stdarg.h>
-#include "Lexer.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-inline bool isWhiteSpace(char c)
-{
-	return ((c == ' ') ||
-		(c == '\t') ||
-		(c == '\n') ||
-		(c == '\r'));
-}
+inline bool isWhiteSpace(char c) { return ((c == ' ') || (c == '\t') || (c == '\n') || (c == '\r')); }
 
 struct CompilerDirective {
-    const char *directive;
-    TOKEN_TYPE type;
-} compiler_directives[] = {
-    { "import",  TK_IMPORT},
+  const char* directive;
+  TOKEN_TYPE type;
+} compiler_directives[] = {{"import", TK_IMPORT},
 
-    { nullptr,   TK_INVALID }
-};
+                           {nullptr, TK_INVALID}};
 
-static void ConvertIdentifierToCompilerDirective(Token &tok, char *buff)
-{
-    CompilerDirective *k;
-    for (k = compiler_directives; k->directive != nullptr; k++) {
-        if (!strcmp(k->directive, buff)) {
-            tok.type = k->type;
-            return;
-        }
+static void ConvertIdentifierToCompilerDirective(Token& tok, char* buff) {
+  CompilerDirective* k;
+  for (k = compiler_directives; k->directive != nullptr; k++) {
+    if (!strcmp(k->directive, buff)) {
+      tok.type = k->type;
+      return;
     }
+  }
+}
+
+struct CompilerTag {
+  const char* tag;
+  TOKEN_TYPE type;
+} compiler_tags[] = {{"compact", TK_COMPACT_ARRAY},
+                     {"naked", TK_NAKED},
+
+                     {nullptr, TK_INVALID}};
+
+static void ConvertIdentifierToCompilerTag(Token& tok, char* buff) {
+  CompilerTag* k;
+  for (k = compiler_tags; k->tag != nullptr; k++) {
+    if (!strcmp(k->tag, buff)) {
+      tok.type = k->type;
+      return;
+    }
+  }
 }
 
 struct ReservedKeyword {
-    const char *keyword;
-    TOKEN_TYPE type;
-} reserved_keywords[] = {
-    { "return",   TK_RETURN },
-    { "struct",   TK_STRUCT },
-    { "enum",     TK_ENUM },
-    { "if",       TK_IF },
-    { "else",     TK_ELSE },
-    { "while",    TK_WHILE },
-    { "for",      TK_FOR },
-    { "break",    TK_BREAK },
-    { "continue", TK_CONTINUE },
-    { "bool",     TK_BOOL },
-    { "true",     TK_TRUE },
-    { "false",    TK_FALSE },
-    { "new",      TK_NEW },
-    { "delete",   TK_DELETE },
-    { "null",     TK_NULL },
-    { "void",     TK_VOID },
-    { "string",   TK_STRING_KEYWORD },
-    { "short_string", TK_SHORT_STRING_KEYWORD },
-    { "int",      TK_S32 },
-    { "u8",       TK_U8 },
-    { "u16",      TK_U16 },
-    { "u32",      TK_U32 },
-    { "u64",      TK_U64 },
-    { "s8",       TK_S8 },
-    { "s16",      TK_S16 },
-    { "s32",      TK_S32 },
-    { "s64",      TK_S64 },
-    { "uint8_t",  TK_U8 },
-    { "uint16_t", TK_U16 },
-    { "uint32_t", TK_U32 },
-    { "uint64_t", TK_U64 },
-    { "int8_t",   TK_S8 },
-    { "int16_t",  TK_S16 },
-    { "int32_t",  TK_S32 },
-    { "int64_t",  TK_S64 },
-    { "uint8",    TK_U8 },
-    { "uint16",   TK_U16 },
-    { "uint32",   TK_U32 },
-    { "uint64",   TK_U64 },
-    { "int8",     TK_S8 },
-    { "int16",    TK_S16 },
-    { "int32",    TK_S32 },
-    { "int64",    TK_S64 },
-    { "float",    TK_F32 },
-    { "double",   TK_F64 },
-    { "f32",      TK_F32 },
-    { "f64",      TK_F64 },
-    { "namespace", TK_NAMESPACE },
-    
-    { nullptr,    TK_INVALID}
-};
+  const char* keyword;
+  TOKEN_TYPE type;
+} reserved_keywords[] = {{"return", TK_RETURN},
+                         {"struct", TK_STRUCT},
+                         {"enum", TK_ENUM},
+                         {"if", TK_IF},
+                         {"else", TK_ELSE},
+                         {"while", TK_WHILE},
+                         {"for", TK_FOR},
+                         {"break", TK_BREAK},
+                         {"continue", TK_CONTINUE},
+                         {"bool", TK_BOOL},
+                         {"true", TK_TRUE},
+                         {"false", TK_FALSE},
+                         {"new", TK_NEW},
+                         {"delete", TK_DELETE},
+                         {"null", TK_NULL},
+                         {"void", TK_VOID},
+                         {"string", TK_STRING_KEYWORD},
+                         {"short_string", TK_SHORT_STRING_KEYWORD},
+                         {"int", TK_S32},
+                         {"u8", TK_U8},
+                         {"u16", TK_U16},
+                         {"u32", TK_U32},
+                         {"u64", TK_U64},
+                         {"s8", TK_S8},
+                         {"s16", TK_S16},
+                         {"s32", TK_S32},
+                         {"s64", TK_S64},
+                         {"uint8_t", TK_U8},
+                         {"uint16_t", TK_U16},
+                         {"uint32_t", TK_U32},
+                         {"uint64_t", TK_U64},
+                         {"int8_t", TK_S8},
+                         {"int16_t", TK_S16},
+                         {"int32_t", TK_S32},
+                         {"int64_t", TK_S64},
+                         {"uint8", TK_U8},
+                         {"uint16", TK_U16},
+                         {"uint32", TK_U32},
+                         {"uint64", TK_U64},
+                         {"int8", TK_S8},
+                         {"int16", TK_S16},
+                         {"int32", TK_S32},
+                         {"int64", TK_S64},
+                         {"float", TK_F32},
+                         {"double", TK_F64},
+                         {"f32", TK_F32},
+                         {"f64", TK_F64},
+                         {"namespace", TK_NAMESPACE},
+                         {"const", TK_CONST},
+                         {"class", TK_CLASS},
 
-static void ConvertIdentifierToReservedKeyword(Token &tok, char *buff)
-{
-    ReservedKeyword *k; 
-    for (k = reserved_keywords; k->keyword != nullptr; k++) {
-        if (!strcmp(k->keyword, buff)) {
-            tok.type = k->type;
-            return;
-        }
+                         {nullptr, TK_INVALID}};
+
+static void ConvertIdentifierToReservedKeyword(Token& tok, char* buff) {
+  ReservedKeyword* k;
+  for (k = reserved_keywords; k->keyword != nullptr; k++) {
+    if (!strcmp(k->keyword, buff)) {
+      tok.type = k->type;
+      return;
     }
+  }
 }
 
 struct StringToken {
-    const char *str;
-    TOKEN_TYPE token;
-} strTok[] = {
-    { "<<",  TK_LSHIFT },
-    { "<=",  TK_LEQ },
-    { "<",   TK_LT },
+  const char* str;
+  TOKEN_TYPE token;
+} strTok[] = {{"<<", TK_LSHIFT},
+              {"<=", TK_LEQ},
+              {"<", TK_LT},
 
-    { "==",  TK_EQ },
-    { "=",   TK_ASSIGN},
+              {"==", TK_EQ},
+              {"=", TK_ASSIGN},
 
-//    { ">>",  TK_RSHIFT },
-    { ">=",  TK_GEQ },
-    { ">",   TK_GT },
+              //    { ">>",  TK_RSHIFT },
+              {">=", TK_GEQ},
+              {">", TK_GT},
 
-    { "::",  TK_DOUBLE_COLON },
-    { ":=",  TK_IMPLICIT_ASSIGN },
-    { ":",   TK_COLON },
+              {"::", TK_DOUBLE_COLON},
+              {":=", TK_IMPLICIT_ASSIGN},
+              {":", TK_COLON},
 
-    { "*=",  TK_MUL_ASSIGN },
-    { "*/",  TK_CLOSE_BLOCK_COMMENT },
-    { "*",   TK_STAR},
+              {"*=", TK_MUL_ASSIGN},
+              {"*/", TK_CLOSE_BLOCK_COMMENT},
+              {"*", TK_STAR},
 
-    { "/=",  TK_DIV_ASSIGN },
-    { "//",  TK_LINE_COMMENT },
-    { "/*",  TK_OPEN_BLOCK_COMMENT },
-    { "/",   TK_DIV },
+              {"/=", TK_DIV_ASSIGN},
+              {"//", TK_LINE_COMMENT},
+              {"/*", TK_OPEN_BLOCK_COMMENT},
+              {"/", TK_DIV},
 
-    { "+=",  TK_ADD_ASSIGN },
-    { "++",  TK_DOUBLE_PLUS },
-    { "+",   TK_PLUS },
+              {"+=", TK_ADD_ASSIGN},
+              {"++", TK_DOUBLE_PLUS},
+              {"+", TK_PLUS},
 
-    { "---", TK_TRIPLE_MINUS },
-    { "-=",  TK_SUB_ASSIGN },
-    { "->",  TK_RETURN_ARROW },
-    { "--",  TK_DOUBLE_MINUS },
-    { "-",   TK_MINUS },
+              {"---", TK_TRIPLE_MINUS},
+              {"-=", TK_SUB_ASSIGN},
+              {"->", TK_RETURN_ARROW},
+              {"--", TK_DOUBLE_MINUS},
+              {"-", TK_MINUS},
 
-    { "&=",  TK_AND_ASSIGN },
-    { "&&",  TK_DOUBLE_AMP },
-    { "&",   TK_AMP },
+              {"&=", TK_AND_ASSIGN},
+              {"&&", TK_DOUBLE_AMP},
+              {"&", TK_AMP},
 
-    { "^=",  TK_XOR_ASSIGN },
-    { "^",   TK_HAT },
+              {"^=", TK_XOR_ASSIGN},
+              {"^", TK_HAT},
 
-    { "|=",  TK_OR_ASSIGN },
-    { "||",  TK_DOUBLE_PIPE },
-    { "|",   TK_PIPE },
+              {"|=", TK_OR_ASSIGN},
+              {"||", TK_DOUBLE_PIPE},
+              {"|", TK_PIPE},
 
-    { "..",  TK_DOUBLE_PERIOD },
-    { ".",   TK_PERIOD},
+              {"..", TK_DOUBLE_PERIOD},
+              {".", TK_PERIOD},
 
-    { "!=",  TK_NEQ },
-    { "!",   TK_BANG },
+              {"!=", TK_NEQ},
+              {"!", TK_BANG},
 
-    { ";",   TK_SEMICOLON },
-    { "(",   TK_OPEN_PAREN },
-    { ")",   TK_CLOSE_PAREN },
-    { "[",   TK_OPEN_SQBRACKET },
-    { "]",   TK_CLOSE_SQBRACKET },
-    { "{",   TK_OPEN_BRACKET },
-    { "}",   TK_CLOSE_BRACKET },
-    { "#",   TK_HASH },
-    { "%",   TK_MOD },
-    { ",",   TK_COMMA },
+              {";", TK_SEMICOLON},
+              {"(", TK_OPEN_PAREN},
+              {")", TK_CLOSE_PAREN},
+              {"[", TK_OPEN_SQBRACKET},
+              {"]", TK_CLOSE_SQBRACKET},
+              {"{", TK_OPEN_BRACKET},
+              {"}", TK_CLOSE_BRACKET},
+              {"#", TK_HASH},
+              {"%", TK_MOD},
+              {",", TK_COMMA},
 
-    { nullptr, TK_INVALID}
-};
+              {nullptr, TK_INVALID}};
 
-const char * TokenTypeToCOP(TOKEN_TYPE type)
-{
-    for (auto &st : strTok) {
-        if (st.token == type) {
-            return st.str;
-        }
+const char* TokenTypeToCOP(TOKEN_TYPE type) {
+  for (auto& st : strTok) {
+    if (st.token == type) {
+      return st.str;
     }
-    assert("We should never be here, using this function wrong");
-    return nullptr;
+  }
+  assert("We should never be here, using this function wrong");
+  return nullptr;
 }
 
-bool Lexer::parseStringToken(char *input, Token &tok)
-{
-    // find the first existence of the first character of input in our array
-    struct StringToken *st;
-    st = strTok;
-    while (st->str != nullptr) {
-        if (input[0] == st->str[0]) {
-            break;
-        }
-        st++;
+bool Lexer::parseStringToken(char* input, Token& tok) {
+  // find the first existence of the first character of input in our array
+  struct StringToken* st;
+  st = strTok;
+  while (st->str != nullptr) {
+    if (input[0] == st->str[0]) {
+      break;
     }
-    if (st->str == nullptr) return false;
+    st++;
+  }
+  if (st->str == nullptr) return false;
 
-    // we assume that input is for sure a string of less than 4 characters
-    assert(strlen(input) < 4);
+  // we assume that input is for sure a string of less than 4 characters
+  assert(strlen(input) < 4);
 
-    while ((st->str != nullptr) && (st->str[0] == input[0])) {
-        if (!strncmp(st->str, input, strlen(st->str))) {
-            // we found a match, our table assigns the first match lenghtwise
-            tok.type = st->token;
-            char c;
-            int i, s;
-            s = (int)strlen(st->str); 
-            // the for loop starts with 1 because we usually have consumed 1 char
-            for (i = 1; i < s; i++) file->getc(c);
-            return true;
-        }
-        st++;
+  while ((st->str != nullptr) && (st->str[0] == input[0])) {
+    if (!strncmp(st->str, input, strlen(st->str))) {
+      // we found a match, our table assigns the first match lenghtwise
+      tok.type = st->token;
+      char c;
+      int i, s;
+      s = (int)strlen(st->str);
+      // the for loop starts with 1 because we usually have consumed 1 char
+      for (i = 1; i < s; i++) file->getchar(c);
+      return true;
     }
-    return false;
+    st++;
+  }
+  return false;
 }
 
-inline bool isNewLine(char c)
-{
-    return ((c == '\n'));
-}
+inline bool isNewLine(char c) { return ((c == '\n')); }
 
-inline bool isNumber(char c)
-{
-    return ((c >= '0') && (c <= '9'));
-}
+inline bool isNumber(char c) { return ((c >= '0') && (c <= '9')); }
 
-inline bool isAlpha(char c)
-{
-    return ((c >= 'a') && (c <= 'z')) ||
-        ((c >= 'A') && (c <= 'Z'));
-}
+inline bool isAlpha(char c) { return ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')); }
 
-inline bool isHex(char c)
-{
-    return isNumber(c) || ((c >= 'A') && (c <= 'F'))
-        || ((c >= 'a') && (c <= 'f'));
-}
+inline bool isHex(char c) { return isNumber(c) || ((c >= 'A') && (c <= 'F')) || ((c >= 'a') && (c <= 'f')); }
 
-void Lexer::parseNumber(Token & tok, char c)
-{
-    // this is a number token
-    u64 total = c - '0';
-    double dtotal = 0;
-    int base = 10;
-    bool decimal = false;
-    int dec_index = 0;
-    char snum[64] = {};
-    char *s = snum;
+void Lexer::parseNumber(Token& tok, char c) {
+  // this is a number token
+  u64 total = c - '0';
+  double dtotal = 0;
+  int base = 10;
+  bool decimal = false;
+  int dec_index = 0;
+  char snum[64] = {};
+  char* s = snum;
 
+  *s++ = c;
+
+  file->peek(c);
+  if (c == 'x') {
+    if (total != 0) {
+      Error("Hex numbers must start with prefix 0x, the compiler saw %d%c\n", (int)total, c);
+    }
+    base = 16;
+
+    file->getchar(c);
     *s++ = c;
+  }
 
-    file->peek(c);
-    if (c == 'x') {
-        if (total != 0) {
-            Error("Hex numbers must start with prefix 0x, the compiler saw %d%c\n", (int)total, c);
-        }
-        base = 16;
-
-        file->getc(c);
-        *s++ = c;
+  while (file->peek(c)) {
+    if (c == '.') {
+      // handle the conversion to float right now
+      if (base == 16) Error("Hex numbers cannot have a period in them\n");
+      file->getchar(c);
+      *s++ = c;
+      decimal = true;
+      dtotal = (double)total;
+      continue;
     }
-
-    while (file->peek(c)) {
-        if (c == '.') {
-            // handle the conversion to float right now
-            if (base == 16) Error("Hex numbers cannot have a period in them\n");
-            file->getc(c);
-            *s++ = c;
-            decimal = true;
-            dtotal = (double)total;
-            continue;
-        }
-        if ((base == 10) && !isNumber(c) && isAlpha(c)) {
-            Error("Numbers need a space at the end\n");
-        }
-        if ((base == 16) && !isHex(c) && isAlpha(c)) {
-            Error("Numbers need a space at the end\n");
-        }
-        if (!isAlpha(c) && !isNumber(c)) {
-            break;
-        }
-        if (!decimal) {
-            total = total * base;
-            if (isNumber(c)) {
-                total += c - '0';
-            } else {
-                c &= 0xDF; // this makes this character lowercase
-                total += 10 + c - 'A';
-            }
-        } else {
-            dec_index++;
-            float num = float(c - '0');
-            dtotal = dtotal + num / pow(10, dec_index);
-        }
-        file->getc(c);
-        *s++ = c;
+    if ((base == 10) && !isNumber(c) && isAlpha(c)) {
+      Error("Numbers need a space at the end\n");
     }
-    if (decimal) {
-        tok._f64 = dtotal;
-        tok.type = TK_FNUMBER;
+    if ((base == 16) && !isHex(c) && isAlpha(c)) {
+      Error("Numbers need a space at the end\n");
+    }
+    if (!isAlpha(c) && !isNumber(c)) {
+      break;
+    }
+    if (!decimal) {
+      total = total * base;
+      if (isNumber(c)) {
+        total += c - '0';
+      } else {
+        c &= 0xDF;  // this makes this character lowercase
+        total += 10 + c - 'A';
+      }
     } else {
-        tok._u64 = total;
-        tok.type = TK_NUMBER;
+      dec_index++;
+      float num = float(c - '0');
+      dtotal = dtotal + num / pow(10, dec_index);
     }
-    tok.string = CreateTextType(pool, snum);
+    file->getchar(c);
+    *s++ = c;
+  }
+  if (decimal) {
+    tok._f64 = dtotal;
+    tok.type = TK_FNUMBER;
+  } else {
+    tok._u64 = total;
+    tok.type = TK_NUMBER;
+    if (base == 16) tok._is_hex = true;
+  }
+  tok.string = CreateTextType(pool, snum);
 }
 
-void Lexer::consumeWhiteSpace()
-{
-	char c = 0;
-	while (file->peek(c)) {
-		if (!isWhiteSpace(c)) {			
-			return;
-		} else {
-			file->getc(c);
-		}
-	}
-}
-
-void Lexer::Error(const char * msg, ...)
-{
-    va_list args;
-	SrcLocation loc;
-	file->getLocation(loc);
-	printf("%s:%d:%d: error: ", file->getFilename(), 
-        loc.line, loc.col);
-
-    va_start(args, msg);
-    vprintf(msg, args);
-    va_end(args);
-	exit(1);
-}
-
-Lexer::Lexer()
-{
-    num_nested = 0;
-    pool = nullptr;
-    token_index = 0;
-}
-
-Lexer::~Lexer()
-{
-}
-
-bool Lexer::openFile(const char * filename)
-{
-    if (!file) {
-        file = new (pool) FileData();
+void Lexer::consumeWhiteSpace() {
+  char c = 0;
+  while (file->peek(c)) {
+    if (!isWhiteSpace(c)) {
+      return;
+    } else {
+      file->getchar(c);
     }
-
-	return file->open(filename);
+  }
 }
 
-bool Lexer::loadString(const char *str, u64 size)
-{
-    if (!file) {
-        file = new (pool) FileData();
-    }
+void Lexer::Error(const char* msg, ...) {
+  va_list args;
+  SrcLocation loc;
+  file->getLocation(loc);
+  printf("%s:%d:%d: error: ", file->getFilename(), loc.line, loc.col);
 
-    return file->loadString(str, size);
+  va_start(args, msg);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+  vprintf(msg, args);
+#pragma clang diagnostic pop
+  va_end(args);
+  exit(1);
 }
 
-void Lexer::parseFile()
-{
-    Token tok;
+Lexer::Lexer() {
+  num_nested = 0;
+  pool = nullptr;
+  token_index = 0;
+}
 
-    filename = CreateTextType(pool, file->getFilename());
+Lexer::~Lexer() {}
 
-    while (tok.type != TK_LAST_TOKEN) {
-        getNextTokenInternal(tok);
-        tokens.push_back(tok);
-    }
+bool Lexer::openFile(const char* filename) {
+  if (!file) {
+    file = new (pool) FileData();
+  }
 
-    token_index = 0;
-    // this is a small optimization to not check for
-    // indices on tokens
+  return file->open(filename);
+}
+
+bool Lexer::loadString(const char* str, u64 size) {
+  if (!file) {
+    file = new (pool) FileData();
+  }
+
+  return file->loadString(str, size);
+}
+
+void Lexer::parseFile() {
+  Token tok;
+
+  filename = CreateTextType(pool, file->getFilename());
+
+  while (tok.type != TK_LAST_TOKEN) {
+    getNextTokenInternal(tok);
     tokens.push_back(tok);
-    tokens.push_back(tok);
-    tokens.push_back(tok);
+  }
+
+  token_index = 0;
+  // this is a small optimization to not check for
+  // indices on tokens
+  tokens.push_back(tok);
+  tokens.push_back(tok);
+  tokens.push_back(tok);
 }
 
-void Lexer::getCurrentToken(Token & tok)
-{
-    if (token_index == tokens.size()) {
-        tok.clear();
-        tok.type = TK_LAST_TOKEN;
-        return;
-    }
-    tok = tokens[token_index];
-}
-
-void Lexer::getNextToken(Token &tok)
-{
-    if (token_index == tokens.size()) {
-        tok.clear();
-        tok.type = TK_LAST_TOKEN;
-        return;
-    }
-    tok = tokens[token_index++];
-}
-
-void Lexer::lookbehindToken(Token & tok)
-{
-    if ((token_index == tokens.size()) || (token_index == 0)) {
-        tok.clear();
-        tok.type = TK_LAST_TOKEN;
-        return;
-    }
-    tok = tokens[token_index-1];
-}
-
-void Lexer::getNextTokenInternal(Token &tok)
-{
-    char c = 0;
-
+void Lexer::getCurrentToken(Token& tok) {
+  if (token_index == tokens.size()) {
     tok.clear();
+    tok.type = TK_LAST_TOKEN;
+    return;
+  }
+  tok = tokens[token_index];
+}
 
-    while(1) {
-        consumeWhiteSpace();
+void Lexer::getNextToken(Token& tok) {
+  if (token_index == tokens.size()) {
+    tok.clear();
+    tok.type = TK_LAST_TOKEN;
+    return;
+  }
+  tok = tokens[token_index++];
+}
 
-        // Get the location in the token, the one for the first character of the token
-        file->getLocation(tok.loc);
+void Lexer::lookbehindToken(Token& tok) {
+  if ((token_index == tokens.size()) || (token_index == 0)) {
+    tok.clear();
+    tok.type = TK_LAST_TOKEN;
+    return;
+  }
+  tok = tokens[token_index - 1];
+}
 
-        if (!file->getc(c)) {
-          tok.type = TK_LAST_TOKEN;
-          return;
-        }
+void Lexer::getNextTokenInternal(Token& tok) {
+  char c = 0;
 
-        if (isNumber(c)) {
-                parseNumber(tok, c);
-        } else if (isAlpha(c) || (c == '_')) {
-            // this can indicate that an identifier starts
-            char buff[256] = {};
-            unsigned int i = 0;
-            buff[i++] = c;
-            while (file->peek(c) && (isAlpha(c) || isNumber(c) || (c == '_')) && (i<255)) {
-              buff[i++] = c;
-              file->getc(c);
-            }
-            tok.type = TK_IDENTIFIER;
-            buff[i] = 0;
-            ConvertIdentifierToReservedKeyword(tok, buff);
-            if (tok.type == TK_IDENTIFIER) tok.string = CreateTextType(pool, buff);
-        } else if (c == '"') {
-            // this marks the start of a string
-            char *s = new char[1024];
-            bool backslash = false;
-            u32 i = 0;
-            while (file->getc(c) && (c != '"') && (!isNewLine(c))) {
-                if (backslash) {
-                    switch (c) {
-                    case 'n':
-                        s[i-1] = '\n';
-                        break;
-                    case 't':
-                        s[i-1] = '\t';
-                        break;
-                    case '\\':
-                        s[i-1] = '\\';
-                        break;
-                    case '\'':
-                        s[i-1] = '\'';
-                        break;
-                    case '\"':
-                        s[i-1] = '\"';
-                        break;
-                    default:
-                        s[i++] = c;
-                    }
-                }
-                else {
-                    s[i++] = c;
-                }
-                if (i >= 1024 - 1) {
-                  Error("Found string too long to parse\n");
-                  exit(1);
-                }
-                backslash = (c == '\\');
-            }
-            if (isNewLine(c)) {
-              Error("Newlines are not allowed inside a quoted string\n");
-              exit(1);
-            }
-            s[i++] = 0;
-            tok.type = TK_STRING;
-            tok.string = CreateTextType(pool, s);
-            delete [] s;
-            return;
-        } else if (c == '\'') {
-            // this marks a character
-            if (!file->getc(c)) {
-                Error("Character was not defined before end of file\n");
-            }
-            tok.type = TK_CHAR;
-            tok._u64 = c;
-            if (!file->getc(c)) {
-                Error("Character was not defined before end of file\n");
-            }
-            if (c != '\'') {
-                Error("Character definitions can only be a single character\n");
-            }
-            return;
-        } else if (c == '#') {
-            char buff[256] = {};
-            unsigned int i = 0;
-            while (file->peek(c) && (isAlpha(c) || (c == '_')) && (i<255)) {
-                buff[i++] = c;
-                file->getc(c);
-            }
-            tok.type = TK_INVALID;
-            buff[i] = 0;
-            ConvertIdentifierToCompilerDirective(tok, buff);
-            if (tok.type == TK_INVALID) {
-                Error("Found invalid compiler directive: #%s\n", buff);
-            }
-            return;
+  tok.clear();
+
+  while (1) {
+    consumeWhiteSpace();
+
+    // Get the location in the token, the one for the first character of the token
+    file->getLocation(tok.loc);
+
+    if (!file->getchar(c)) {
+      tok.type = TK_LAST_TOKEN;
+      return;
+    }
+
+    if (isNumber(c)) {
+      parseNumber(tok, c);
+    } else if (isAlpha(c) || (c == '_')) {
+      // this can indicate that an identifier starts
+      char buff[256] = {};
+      unsigned int i = 0;
+      buff[i++] = c;
+      while (file->peek(c) && (isAlpha(c) || isNumber(c) || (c == '_')) && (i < 255)) {
+        buff[i++] = c;
+        file->getchar(c);
+      }
+      tok.type = TK_IDENTIFIER;
+      buff[i] = 0;
+      ConvertIdentifierToReservedKeyword(tok, buff);
+      if (tok.type == TK_IDENTIFIER) tok.string = CreateTextType(pool, buff);
+    } else if (c == '"') {
+      // this marks the start of a string
+      char* s = new char[1024];
+      bool backslash = false;
+      u32 i = 0;
+      while (file->getchar(c) && (c != '"') && (!isNewLine(c))) {
+        if (backslash) {
+          switch (c) {
+            case 'n':
+              s[i - 1] = '\n';
+              break;
+            case 't':
+              s[i - 1] = '\t';
+              break;
+            case '\\':
+              s[i - 1] = '\\';
+              break;
+            case '\'':
+              s[i - 1] = '\'';
+              break;
+            case '\"':
+              s[i - 1] = '\"';
+              break;
+            default:
+              s[i++] = c;
+          }
         } else {
-            // we are going to do a bit of lookahead in the string
-            char input[4] = {};
-            input[0] = c;
-            file->lookAheadTwo(&input[1]);
-            if (!parseStringToken(input, tok)) {
-                // at this point, all other tokens must be in this form
-                Error("Token not recognized : [%s]\n", input); 
-            }
-
-            if (tok.type == TK_LINE_COMMENT) {
-                // we are in a comment situation, advance the pointer
-                file->getc(c);
-                // this will consume all characters until the newline is found, or end of file
-                while (file->getc(c) && !isNewLine(c));
-                tok.clear();
-                continue;
-            } else if (tok.type == TK_OPEN_BLOCK_COMMENT) {
-                // this is a multi line comment, move until we find a star (and then a slash)
-                bool cont = file->getc(c);
-                file->getLocation(nested_comment_stack[num_nested]);
-                num_nested++;
-                while (cont) {
-                    while ((cont = file->getc(c)) && (c != '*') && (c != '/'));
-                    if (!cont) {
-                        tok.type = TK_LAST_TOKEN;
-                        return;
-                    }
-                    if (c == '/') {
-                        // possible nested comment
-                        cont = file->getc(c);
-                        if (cont && (c == '*')) {
-                            if (num_nested + 1 >= MAX_NESTED_COMMENT) {
-                                Error("You have reached the maximum number of nested comments: %d\n", MAX_NESTED_COMMENT);
-                            }
-                            file->getLocation(nested_comment_stack[num_nested]);
-                            num_nested++;
-                        }
-                    } else {
-                        cont = file->getc(c);
-                        if (cont && (c == '/')) {
-                            num_nested--;
-                            if (num_nested == 0) break;
-                        }
-                    }
-                    // just fall through and parse a new token
-                }
-                // just continue and parse a new token
-                tok.clear();
-                continue;
-            }
+          s[i++] = c;
         }
-                        
-        if (tok.type != TK_INVALID) {
-          return;
-          // if we have a valid token return it, otherwise continue. This handles comments, etc
+        if (i >= 1024 - 1) {
+          Error("Found string too long to parse\n");
+          exit(1);
         }
-    }
-}
+        backslash = (c == '\\');
+      }
+      if (isNewLine(c)) {
+        Error("Newlines are not allowed inside a quoted string\n");
+        exit(1);
+      }
+      s[i++] = 0;
+      tok.type = TK_STRING;
+      tok.string = CreateTextType(pool, s);
+      delete[] s;
+      return;
+    } else if (c == '\'') {
+      // this marks a character
+      if (!file->getchar(c)) {
+        Error("Character was not defined before end of file\n");
+      }
+      tok.type = TK_CHAR;
+      tok._u64 = c;
+      if (!file->getchar(c)) {
+        Error("Character was not defined before end of file\n");
+      }
+      if (c != '\'') {
+        Error("Character definitions can only be a single character\n");
+      }
+      return;
+    } else if (c == '#') {
+      char buff[256] = {};
+      unsigned int i = 0;
+      while (file->peek(c) && (isAlpha(c) || (c == '_')) && (i < 255)) {
+        buff[i++] = c;
+        file->getchar(c);
+      }
+      tok.type = TK_INVALID;
+      buff[i] = 0;
+      ConvertIdentifierToCompilerDirective(tok, buff);
+      if (tok.type == TK_INVALID) {
+        Error("Found invalid compiler directive: #%s\n", buff);
+      }
+      return;
+    } else if (c == '@') {
+      char buff[256] = {};
+      unsigned int i = 0;
+      while (file->peek(c) && (isAlpha(c) || (c == '_')) && (i < 255)) {
+        buff[i++] = c;
+        file->getchar(c);
+      }
+      tok.type = TK_INVALID;
+      buff[i] = 0;
+      ConvertIdentifierToCompilerTag(tok, buff);
+      if (tok.type == TK_INVALID) {
+        Error("Found invalid compiler directive: #%s\n", buff);
+      }
+      return;
+    } else {
+      // we are going to do a bit of lookahead in the string
+      char input[4] = {};
+      input[0] = c;
+      file->lookAheadTwo(&input[1]);
+      if (!parseStringToken(input, tok)) {
+        // at this point, all other tokens must be in this form
+        Error("Token not recognized : [%s]\n", input);
+      }
 
-void Lexer::lookaheadToken(Token & tok)
-{
-    if (token_index == tokens.size()) {
+      if (tok.type == TK_LINE_COMMENT) {
+        // we are in a comment situation, advance the pointer
+        // this will consume all characters until the newline is found, or end of file
+        while (file->getchar(c) && !isNewLine(c))
+          ;
         tok.clear();
-        tok.type = TK_LAST_TOKEN;
-        return;
+        continue;
+      } else if (tok.type == TK_OPEN_BLOCK_COMMENT) {
+        // this is a multi line comment, move until we find a star (and then a slash)
+        bool cont = file->getchar(c);
+        file->getLocation(nested_comment_stack[num_nested]);
+        num_nested++;
+        while (cont) {
+          while ((cont = file->getchar(c)) && (c != '*') && (c != '/'))
+            ;
+          if (!cont) {
+            tok.type = TK_LAST_TOKEN;
+            return;
+          }
+          if (c == '/') {
+            // possible nested comment
+            cont = file->getchar(c);
+            if (cont && (c == '*')) {
+              if (num_nested + 1 >= MAX_NESTED_COMMENT) {
+                Error("You have reached the maximum number of nested comments: %d\n", MAX_NESTED_COMMENT);
+              }
+              file->getLocation(nested_comment_stack[num_nested]);
+              num_nested++;
+            }
+          } else {
+            cont = file->getchar(c);
+            if (cont && (c == '/')) {
+              num_nested--;
+              if (num_nested == 0) break;
+            }
+          }
+          // just fall through and parse a new token
+        }
+        // just continue and parse a new token
+        tok.clear();
+        continue;
+      }
     }
-    tok = tokens[token_index];
+
+    if (tok.type != TK_INVALID) {
+      return;
+      // if we have a valid token return it, otherwise continue. This handles comments, etc
+    }
+  }
 }
 
-void Lexer::lookNaheadToken(Token & tok, unsigned int ahead)
-{
-    unsigned int index = token_index + ahead;
-    tok = tokens[index];
+void Lexer::lookaheadToken(Token& tok) {
+  if (token_index == tokens.size()) {
+    tok.clear();
+    tok.type = TK_LAST_TOKEN;
+    return;
+  }
+  tok = tokens[token_index];
 }
 
-void Lexer::consumeToken()
-{
-    token_index++;
+void Lexer::lookNaheadToken(Token& tok, unsigned int ahead) {
+  unsigned int index = token_index + ahead;
+  tok = tokens[index];
 }
 
-void Lexer::getLocation(SrcLocation & loc) const
-{
-    loc = tokens[token_index].loc;
-}
+void Lexer::consumeToken() { token_index++; }
 
-unsigned int Lexer::getTokenStreamPosition() const
-{
-    return token_index;
-}
+void Lexer::getLocation(SrcLocation& loc) const { loc = tokens[token_index].loc; }
 
-void Lexer::setTokenStreamPosition(unsigned int index)
-{
-    token_index = index;
-}
+unsigned int Lexer::getTokenStreamPosition() const { return token_index; }
+
+void Lexer::setTokenStreamPosition(unsigned int index) { token_index = index; }

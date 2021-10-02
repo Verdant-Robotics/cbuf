@@ -1,20 +1,34 @@
 #pragma once
 
-#include "ast.h"
-#include "StringBuffer.h"
+#include "StdStringBuffer.h"
 #include "SymbolTable.h"
+#include "ast.h"
 
-class CPrinter
-{
-    FileData *main_file = nullptr;
-    StringBuffer *buffer;
-    SymbolTable *sym;
-    void print(ast_namespace *sp);
-    void print(ast_struct *st);
-    void print(ast_enum *en);
-    void print(ast_element *elem);
+class CPrinter {
+  FileData* main_file = nullptr;
+  StdStringBuffer* buffer;
+  SymbolTable* sym;
+  void print(ast_namespace* sp);
+  void print(ast_struct* st);
+  void print(ast_enum* en);
+  void print(ast_element* elem);
+  void print(ast_const* cst);
 
-    void print_net(ast_struct *st);
-  public:
-    void print(StringBuffer *buf, ast_global *top_ast, SymbolTable *symbols);
+  void printInit(ast_element* elem);
+
+  void printLoaderDeclaration(ast_namespace* sp);
+  void printLoaderDeclaration(ast_struct* st);
+  void printLoader(ast_namespace* sp);
+  void printLoader(ast_struct* st);
+  void printLoader(ast_element* elem);
+
+  void print_net(ast_struct* st);
+
+  // helpers
+  void helper_print_array_suffix(ast_element* elem);
+
+public:
+  void print(StdStringBuffer* buf, ast_global* top_ast, SymbolTable* symbols);
+
+  void printLoader(StdStringBuffer* buf, ast_global* top_ast, SymbolTable* symbols, const char* c_name);
 };

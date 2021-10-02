@@ -1,18 +1,15 @@
 #pragma once
 #include <stddef.h>
 
-class StringBuffer {
-  char* buffer;
-  char* end;
-  int ident;
-  size_t buf_size;
-  size_t rem_size;
+#include <string>
 
-  void realloc_buffer(int nsize);
+class StdStringBuffer {
+  std::string buffer;
+  int ident;
 
 public:
-  StringBuffer();
-  ~StringBuffer();
+  StdStringBuffer();
+  ~StdStringBuffer();
 
   void print(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
   void print_no(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
@@ -22,5 +19,5 @@ public:
   void decrease_ident() { ident -= 4; }
   int get_ident() { return ident; }
   void set_ident(int i) { ident = i; }
-  void prepend(const StringBuffer* buf);
+  void prepend(const StdStringBuffer* buf);
 };

@@ -1,61 +1,60 @@
 #include "Token.h"
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
-//Token::~Token()
+// Token::~Token()
 //{
-//	type = INVALID;
+//  type = INVALID;
 //}
 
-void Token::clear()
-{
-	type = TK_INVALID;
-    string = nullptr;
+void Token::clear() {
+  type = TK_INVALID;
+  string = nullptr;
 }
 
-
-void Token::print()
-{
-	printf("Token %03d:%03d type %s", loc.line, loc.col, TokenTypeToStr(type));
-	switch (type) {
-	case TK_NUMBER:
-		printf(" %" PRIu64 , _u64);
-		break;
+void Token::print() {
+  printf("Token %03d:%03d type %s", loc.line, loc.col, TokenTypeToStr(type));
+  switch (type) {
+    case TK_NUMBER:
+      printf(" %" PRIu64, _u64);
+      break;
     case TK_FNUMBER:
-        printf(" %f", _f64);
-        break;
+      printf(" %f", _f64);
+      break;
     case TK_IDENTIFIER:
-	case TK_STRING:
-		printf(" %s", string);
-		break;
-	case TK_CHAR:
-		printf(" %c", (char)_u64);
-		break;
+    case TK_STRING:
+      printf(" %s", string);
+      break;
+    case TK_CHAR:
+      printf(" %c", (char)_u64);
+      break;
     default:
-        // Nothing to print here
-        break;
-	}
-	printf("\n");
+      // Nothing to print here
+      break;
+  }
+  printf("\n");
 }
 
-#define CASE_TOKEN_TYPE(a) case a: return #a
-const char * TokenTypeToStr(TOKEN_TYPE type)
-{
-	switch (type) {
-		CASE_TOKEN_TYPE(TK_LAST_TOKEN);
-		CASE_TOKEN_TYPE(TK_NUMBER);
+#define CASE_TOKEN_TYPE(a) \
+  case a:                  \
+    return #a
+const char* TokenTypeToStr(TOKEN_TYPE type) {
+  switch (type) {
+    CASE_TOKEN_TYPE(TK_LAST_TOKEN);
+    CASE_TOKEN_TYPE(TK_NUMBER);
     CASE_TOKEN_TYPE(TK_FNUMBER);
     CASE_TOKEN_TYPE(TK_IDENTIFIER);
-		CASE_TOKEN_TYPE(TK_EQ);
+    CASE_TOKEN_TYPE(TK_EQ);
     CASE_TOKEN_TYPE(TK_LEQ);
     CASE_TOKEN_TYPE(TK_GEQ);
     CASE_TOKEN_TYPE(TK_NEQ);
-		CASE_TOKEN_TYPE(TK_LT);
+    CASE_TOKEN_TYPE(TK_LT);
     CASE_TOKEN_TYPE(TK_GT);
-//        CASE_TOKEN_TYPE(TK_RSHIFT);
+    //        CASE_TOKEN_TYPE(TK_RSHIFT);
     CASE_TOKEN_TYPE(TK_LSHIFT);
-		CASE_TOKEN_TYPE(TK_ASSIGN);
+    CASE_TOKEN_TYPE(TK_ASSIGN);
     CASE_TOKEN_TYPE(TK_IMPLICIT_ASSIGN);
     CASE_TOKEN_TYPE(TK_MUL_ASSIGN);
     CASE_TOKEN_TYPE(TK_DIV_ASSIGN);
@@ -104,6 +103,7 @@ const char * TokenTypeToStr(TOKEN_TYPE type)
     CASE_TOKEN_TYPE(TK_TRUE);
     CASE_TOKEN_TYPE(TK_NEW);
     CASE_TOKEN_TYPE(TK_DELETE);
+    CASE_TOKEN_TYPE(TK_CONST);
     CASE_TOKEN_TYPE(TK_NULL);
     CASE_TOKEN_TYPE(TK_FALSE);
     CASE_TOKEN_TYPE(TK_VOID);
@@ -126,13 +126,15 @@ const char * TokenTypeToStr(TOKEN_TYPE type)
     CASE_TOKEN_TYPE(TK_WHILE);
     CASE_TOKEN_TYPE(TK_BREAK);
     CASE_TOKEN_TYPE(TK_CONTINUE);
+    CASE_TOKEN_TYPE(TK_CLASS);
     CASE_TOKEN_TYPE(TK_IMPORT);
+    CASE_TOKEN_TYPE(TK_NAKED);
+    CASE_TOKEN_TYPE(TK_COMPACT_ARRAY);
     CASE_TOKEN_TYPE(TK_OPEN_BLOCK_COMMENT);
     CASE_TOKEN_TYPE(TK_CLOSE_BLOCK_COMMENT);
     CASE_TOKEN_TYPE(TK_LINE_COMMENT);
     case TK_INVALID:
-        break;
-    }
-        return "UNKNOWN";   
-}                       
-
+      break;
+  }
+  return "UNKNOWN";
+}

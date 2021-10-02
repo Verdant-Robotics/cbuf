@@ -1,28 +1,28 @@
 #pragma once
 
-#include "ast.h"
-#include "StringBuffer.h"
-#include "SymbolTable.h"
 #include <map>
 
-class AstPrinter
-{
-    StringBuffer *buffer;
-    SymbolTable *sym = nullptr;
-    std::map<void *, int> printed_types;
+#include "StdStringBuffer.h"
+#include "SymbolTable.h"
+#include "ast.h"
 
-    void print_elem(ast_element *elem);
-    void print_enum(ast_enum *enm);
-    void print_struct(ast_struct *st);
-    void print_namespace(ast_namespace *sp);
+class AstPrinter {
+  StdStringBuffer* buffer;
+  SymbolTable* sym = nullptr;
+  std::map<void*, int> printed_types;
 
-  public:
-    AstPrinter();
-    ~AstPrinter();
+  void print_elem(ast_element* elem);
+  void print_enum(ast_enum* enm);
+  void print_struct(ast_struct* st);
+  void print_namespace(ast_namespace* sp);
 
-    void setSymbolTable(SymbolTable *s) { sym = s; }
+public:
+  AstPrinter();
+  ~AstPrinter();
 
-    void print_ast(StringBuffer *buf, ast_global *ast);
-    void print_ast(StringBuffer *buf, ast_struct *ast);
-    void print_ast(StringBuffer *buf, ast_element *elem);
+  void setSymbolTable(SymbolTable* s) { sym = s; }
+
+  void print_ast(StdStringBuffer* buf, ast_global* ast);
+  void print_ast(StdStringBuffer* buf, ast_struct* ast);
+  void print_ast(StdStringBuffer* buf, ast_element* elem);
 };

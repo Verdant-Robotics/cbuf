@@ -2,8 +2,8 @@ namespace messages
 {
     struct inctype
     {
-        short_string sensor_name; // short string is a POD, fixed size string
-        u32     val;
+        short_string sensor_name = "somename"; // short string is a POD, fixed size string
+        u32     val = 10;
     }
 
 }
