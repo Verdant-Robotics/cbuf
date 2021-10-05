@@ -85,9 +85,9 @@ install(TARGETS cbuf_parse_dynamic DESTINATION lib)
 
 if(hjson_FOUND)
   target_compile_definitions(cbuf_parse PUBLIC HJSON_PRESENT)
-  target_link_libraries(cbuf_parse hjson)
+  target_link_libraries(cbuf_parse PUBLIC hjson)
   target_compile_definitions(cbuf_parse_dynamic PUBLIC HJSON_PRESENT)
-  target_link_libraries(cbuf_parse_dynamic hjson)
+  target_link_libraries(cbuf_parse_dynamic PUBLIC hjson)
 endif()
 
 add_executable(cbuf ${CBUF_SRCS})
