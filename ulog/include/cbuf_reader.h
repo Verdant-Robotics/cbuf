@@ -1,5 +1,7 @@
 #pragma once
 
+#include <hjson.h>
+
 #include <functional>
 #include <unordered_map>
 
@@ -342,36 +344,7 @@ public:
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
-  bool openUlog(bool error_ok = false) {
-    std::vector<std::string> files_in_dir = GetFilesInDirectory(ulog_path_);
-    for (auto& f : files_in_dir) {
-      if (GetFileExtension(f) == "cb") {
-        if (!role_filter_.empty()) {
-          if (std::string::npos == f.find(role_filter_, 0)) {
-            // skip cbufs that do not contain the role we want to filter on
-            continue;
-          }
-        }
-        vlog_fine(VCAT_GENERAL, "Found cbuf file: %s", f.c_str());
-        // this is a cb file, open it
-        StreamInfo* si = new StreamInfo;
-        si->cis = new cbuf_istream();
-        si->filename = f;
-        std::string fname = ulog_path_ + "/" + f;
-        if (!si->cis->open_file(fname.c_str())) {
-          if (!error_ok) vlog_error(VCAT_GENERAL, "Could not open file %s for reading", fname.c_str());
-          return false;
-        }
-        input_streams.push_back(si);
-      }
-    }
-    if (input_streams.size() == 0) {
-      if (!error_ok)
-        vlog_error(VCAT_GENERAL, "Could not find any 'cb' file on the ulog file %s", ulog_path_.c_str());
-      return false;
-    }
-    return true;
-  }
+  bool openUlog(bool error_ok = false);
 
   double getNextTimestamp() {
     if (!computeNextSi()) return -1;
