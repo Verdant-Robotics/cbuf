@@ -24,15 +24,17 @@ private:
     uint64_t id_;
     const char* metadata_ = nullptr;
     const char* type_name_ = nullptr;
+    uint64_t topic_name_hash_ = 0;
 
     Allocation(uint32_t size, uint32_t begin, AllocationType type, uint64_t id, const char* metadata,
-               const char* type_name)
+               const char* type_name, const uint64_t topic_name_hash)
         : size_(size)
         , begin_(begin)
         , type_(type)
         , id_(id)
         , metadata_(metadata)
-        , type_name_(type_name) {}
+        , type_name_(type_name)
+        , topic_name_hash_(topic_name_hash) {}
 
     Allocation() {}
   };
@@ -54,6 +56,7 @@ public:
     uint32_t size;
     const char* metadata;
     const char* type_name;
+    const uint64_t topic_name_hash;
   };
   RingBuffer()
       : m_buf()
@@ -69,7 +72,8 @@ public:
   ~RingBuffer() {}
 
   uint32_t size() { return m_sizeAllocated.load(); }
-  std::optional<Allocation> alloc_inner(int size, const char* metadata, const char* type_name) {
+  std::optional<Allocation> alloc_inner(int size, const char* metadata, const char* type_name,
+                                        const uint64_t& topic_name_hash) {
     std::unique_lock<std::mutex> uniquelock(lk);
 
     freecv.wait(uniquelock, [&]() {
@@ -83,7 +87,8 @@ public:
     });
 
     if (size != 0 && m_write + size <= Size) {
-      Allocation a(size, m_write, AllocationType::Empty, allocationId++, metadata, type_name);
+      Allocation a(size, m_write, AllocationType::Empty, allocationId++, metadata, type_name,
+                   topic_name_hash);
       alloclock.lock();
       allocations[a.id_] = a;
       alloclock.unlock();
@@ -92,7 +97,7 @@ public:
       uniquelock.unlock();
       return std::optional<Allocation>(a);
     } else {
-      Allocation a(Size - m_write, m_write, AllocationType::Dummy, allocationId++, nullptr, nullptr);
+      Allocation a(Size - m_write, m_write, AllocationType::Dummy, allocationId++, nullptr, nullptr, 0);
       alloclock.lock();
       allocations[a.id_] = a;
       alloclock.unlock();
@@ -104,9 +109,9 @@ public:
     }
   }
 
-  uint64_t alloc(int size, const char* metadata, const char* type_name) {
+  uint64_t alloc(int size, const char* metadata, const char* type_name, const uint64_t topic_name_hash = 0) {
     std::optional<Allocation> r;
-    while (!(r = alloc_inner(size, metadata, type_name))) {
+    while (!(r = alloc_inner(size, metadata, type_name, topic_name_hash))) {
       usleep(100);
     }
     return (*r).id_;
@@ -161,10 +166,11 @@ public:
 
         if (a.type_ == AllocationType::Populated) {
           uniquelock.unlock();
-          return std::optional<Buffer>({handleToAddress(lastUnfreedId), a.size_, a.metadata_, a.type_name_});
+          return std::optional<Buffer>(
+              {handleToAddress(lastUnfreedId), a.size_, a.metadata_, a.type_name_, a.topic_name_hash_});
         } else {
           uniquelock.unlock();
-          return std::optional<Buffer>({nullptr, 0, nullptr, nullptr});
+          return std::optional<Buffer>({nullptr, 0, nullptr, nullptr, 0});
         }
       }
     } else {

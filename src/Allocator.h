@@ -5,7 +5,7 @@
 
 class Allocator {
 public:
-  Allocator(size_t start_size = 0) {}
+  Allocator(size_t start_size = 0) { (void)start_size; }
   virtual ~Allocator() {}
   virtual void* alloc(size_t size) = 0;
   virtual void free(void* p) = 0;

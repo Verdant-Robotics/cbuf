@@ -28,7 +28,8 @@ class ATTR_PACKED VString {
       if ((buffer[used_chars] == 0) && (s[used_chars] == 0)) return true;
       if ((buffer[used_chars] == 0) || (s[used_chars] == 0)) return false;
     }
-    if ((buffer[used_chars] == 0) && (s[used_chars] == 0)) return true;
+    if (used_chars <= nchars)
+      if ((buffer[used_chars] == 0) && (s[used_chars] == 0)) return true;
     return false;
   }
 
@@ -51,15 +52,15 @@ public:
 
   bool operator==(const char* s) const { return equals(s); }
 
-  bool operator==(const std::string& s) { return equals(s.c_str()); }
+  bool operator==(const std::string& s) const { return equals(s.c_str()); }
 
-  bool operator==(const VString& s) { return equals(s.c_str()); }
+  bool operator==(const VString& s) const { return equals(s.c_str()); }
 
   bool operator!=(const char* s) const { return !equals(s); }
 
-  bool operator!=(const std::string& s) { return !equals(s.c_str()); }
+  bool operator!=(const std::string& s) const { return !equals(s.c_str()); }
 
-  bool operator!=(const VString& s) { return !equals(s.c_str()); }
+  bool operator!=(const VString& s) const { return !equals(s.c_str()); }
 
   operator const std::string_view() const { return buffer; }
 

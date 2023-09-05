@@ -6,10 +6,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <experimental/filesystem>  //#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <streambuf>
+#include <unordered_map>
 
 #include "vlog.h"
 
@@ -18,8 +18,33 @@ static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
-namespace std {
-namespace filesystem = experimental::filesystem;
+#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
+    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
+#include <filesystem>
+namespace fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
+
+int ULogger::getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t& topic_name_hash) {
+  // get the vector for the give message hash
+  auto topic_vector_it = cos.variant_dictionary.find(message_hash);
+  if (topic_vector_it == cos.variant_dictionary.end()) {
+    auto& topic_vector = cos.variant_dictionary[message_hash];
+    topic_vector.push_back(topic_name_hash);
+    return 1;
+  }
+  int iter;
+  for (iter = 0; iter < topic_vector_it->second.size(); iter++) {
+    if (topic_vector_it->second[iter] == topic_name_hash) break;
+  }
+  if (iter == topic_vector_it->second.size()) {
+    topic_vector_it->second.push_back(topic_name_hash);
+    return topic_vector_it->second.size();
+  }
+  // variant numbering starts from 1
+  return iter + 1;
 }
 
 void ULogger::setLogPath(const std::string& path) {
@@ -29,9 +54,9 @@ void ULogger::setLogPath(const std::string& path) {
     outputdir = path;
 
     // create output path
-    if (!std::filesystem::exists(outputdir.c_str())) {
+    if (!fs::exists(outputdir.c_str())) {
       vlog_info(VCAT_GENERAL, "ULogger creating directory %s", outputdir.c_str());
-      if (!std::filesystem::create_directories(outputdir.c_str(), ec)) {
+      if (!fs::create_directories(outputdir.c_str(), ec)) {
         vlog_error(VCAT_GENERAL,
                    "Error: output directory does not exist and could not create it: %s Error: %s \n",
                    outputdir.c_str(), ec.message().c_str());
@@ -90,7 +115,7 @@ void ULogger::fillUlogFilename() {
   // Issue a warning here if outputdir is empty
   ulogfilename = getLogPath() + "/" + buffer;
   unsigned int suffix = 1;
-  while (std::experimental::filesystem::exists(ulogfilename)) {
+  while (fs::exists(ulogfilename)) {
     sprintf(buffer, "%s.%s.%d.%02d.%02d.%02d_%02d_%02d_%d.cb", __progname, hostname, info->tm_year + 1900,
             info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec, suffix);
     suffix++;
@@ -101,7 +126,8 @@ void ULogger::fillUlogFilename() {
 // Process packet here:
 // Check the dictionary if needed for metadata
 // Write the packet otherwise
-void ULogger::processPacket(void* data, int size, const char* metadata, const char* type_name) {
+void ULogger::processPacket(void* data, int size, const char* metadata, const char* type_name,
+                            const uint64_t topic_name_hash) {
   cbuf_preamble* pre = (cbuf_preamble*)data;
   if (!cos.is_open()) {
     bool r = openFile();
@@ -120,14 +146,22 @@ void ULogger::processPacket(void* data, int size, const char* metadata, const ch
   file_check_count++;
   if (file_check_count > 1000) {
     // Once in a while, check disk space
-    std::filesystem::space_info disk = std::filesystem::space(ulogfilename);
+    fs::space_info disk = fs::space(ulogfilename);
     VLOG_ASSERT(disk.free > 1024 * 1024 * 1024, "We are running low on disk, we have %zu free bytes",
                 disk.free);
     file_check_count = 0;
   }
 
+  // if metadata for this type of message not already serialized then serialize it
   if (cos.dictionary.count(pre->hash) == 0) {
     cos.serialize_metadata(metadata, pre->hash, type_name);
+  }
+
+  // set the variant of this message add a item to dictionary if it does not already exist
+  if (topic_name_hash != 0) {
+    pre->setVariant(getOrMakeTopicVariant(pre->hash, topic_name_hash));
+  } else {
+    pre->setVariant(0);
   }
 
   int bytes_to_write = size;
@@ -148,6 +182,11 @@ void ULogger::processPacket(void* data, int size, const char* metadata, const ch
       }
     }
   } while (bytes_to_write > 0);
+
+  if (file_write_callback_) {
+    file_write_callback_(data, size);
+  }
+
   current_file_size += size;
 
   // Paranoia
@@ -169,14 +208,21 @@ std::string ULogger::getCurrentUlogPath() {
   return result;
 }
 
+static void write_callback(const void* ptr, size_t bytes, void* usr_ptr) {
+  ULogger* ulogger = (ULogger*)usr_ptr;
+  if (ulogger->getFileWriteCallback()) {
+    ulogger->getFileWriteCallback()(ptr, bytes);
+  }
+}
+
 bool ULogger::openFile() {
   std::lock_guard guard(g_file_mutex);
   std::error_code ec;
 
   // create output path
-  if (!std::filesystem::exists(outputdir.c_str())) {
+  if (!fs::exists(outputdir.c_str())) {
     vlog_info(VCAT_GENERAL, "ULogger creating directory %s", outputdir.c_str());
-    if (!std::filesystem::create_directories(outputdir.c_str(), ec)) {
+    if (!fs::create_directories(outputdir.c_str(), ec)) {
       vlog_error(VCAT_GENERAL,
                  "Error: output directory does not exist and could not create it: %s Error: %s \n",
                  outputdir.c_str(), ec.message().c_str());
@@ -195,7 +241,33 @@ bool ULogger::openFile() {
     return false;
   }
   current_file_size = 0;
+  if (file_write_callback_) {
+    cos.setFileWriteCallback(write_callback, this);
+  }
+  if (file_open_callback_) {
+    file_open_callback_(ulogfilename);
+  }
+
   return true;
+}
+
+void ULogger::setFileWriteCallback(std::function<void(const void*, size_t)> cb, std::string& file_path,
+                                   size_t& offset) {
+  std::lock_guard guard(g_file_mutex);
+  file_write_callback_ = cb;
+  cos.setFileWriteCallback(write_callback, this);
+  if (cos.is_open()) {
+    fsync(cos.stream);
+    file_path = cos.filename();
+    offset = static_cast<size_t>(cos.file_offset());
+  }
+}
+
+void ULogger::resetFileCallbacks() {
+  std::lock_guard guard(g_file_mutex);
+  file_close_callback_ = std::function<void(const std::string&)>();
+  file_open_callback_ = std::function<void(const std::string&)>();
+  file_write_callback_ = std::function<void(const void*, size_t)>();
 }
 
 void ULogger::closeFile() {
@@ -241,7 +313,7 @@ bool ULogger::initialize() {
       }
 
       if (r->size > 0) {
-        processPacket(r->loc, r->size, r->metadata, r->type_name);
+        processPacket(r->loc, r->size, r->metadata, r->type_name, r->topic_name_hash);
       }
       ringbuffer.dequeue();
     }
@@ -256,7 +328,7 @@ bool ULogger::initialize() {
       }
 
       if (r->size > 0) {
-        processPacket(r->loc, r->size, r->metadata, r->type_name);
+        processPacket(r->loc, r->size, r->metadata, r->type_name, r->topic_name_hash);
       }
       ringbuffer.dequeue();
     }
@@ -296,4 +368,18 @@ void ULogger::endLogging() {
   delete g_ulogger;
   g_ulogger = nullptr;
   initialized = false;
+}
+
+bool ULogger::serialize_bytes(const uint8_t* msg_bytes, size_t message_size, const char* type_name,
+                              const char* metadata, const uint64_t topic_name_hash) {
+  if (quit_thread) return false;
+
+  if (!logging_enabled) return true;
+  uint64_t buffer_handle = ringbuffer.alloc(message_size, metadata, type_name, topic_name_hash);
+  char* ringbuffer_mem = (char*)ringbuffer.handleToAddress(buffer_handle);
+  memcpy(ringbuffer_mem, msg_bytes, message_size);
+  cbuf_preamble* pre = (cbuf_preamble*)ringbuffer_mem;
+  pre->packet_timest = time_now();
+  ringbuffer.populate(buffer_handle);
+  return true;
 }

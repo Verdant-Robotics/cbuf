@@ -4,7 +4,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 StdStringBuffer::StdStringBuffer() {
   buffer.reserve(4096);
@@ -26,6 +25,8 @@ void StdStringBuffer::print(const char* fmt, ...) {
   va_copy(vacount, args);
   int nsize = vsnprintf(small, 0, fmt, vacount) + 5;
   va_end(vacount);
+  // note: we are counting on vsnprintf's behavior of returning the number of characters that
+  // would be written, regardless of buffer size.
 
   assert(nsize >= 0);
   char* intermediate = (char*)malloc(nsize);
@@ -47,6 +48,8 @@ void StdStringBuffer::print_no(const char* fmt, ...) {
   va_copy(vacount, args);
   int nsize = vsnprintf(small, 0, fmt, vacount) + 5;
   va_end(vacount);
+  // note: we are counting on vsnprintf's behavior of returning the number of characters that
+  // would be written, regardless of buffer size.
 
   assert(nsize >= 0);
   char* intermediate = (char*)malloc(nsize);

@@ -39,9 +39,9 @@ namespace messages
     // Define enums in the VRM file
     enum MyFancyEnum
     {
-        VALUE_1,  // No value assignment yet
+        VALUE_1 = -3,  // No value assignment yet
         VALUE_2,
-        VALUE_3
+        VALUE_3 = 32
     }
 
     // structs can be qualified with naked, in which
@@ -63,7 +63,10 @@ namespace messages
         s32   type;   // opengl type
         double  timestamp = 1.3;
         u8   pixels[1024*3]; // raw data
-        MyFancyEnum fancy;
+        double neginit = -1.3;
+        double dexpinit = 2.0 * 3.4 / 2.7;
+        s32 iexpinit = 3*4*(12*23) + 70/2;
+        MyFancyEnum fancy = VALUE_2;
         outer::silly1 sill;
         inctype includes;
         naked_struct nstruct;

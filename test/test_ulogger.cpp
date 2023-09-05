@@ -1,20 +1,22 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 #include <chrono>
-#include <experimental/filesystem>  //#include <filesystem>
 #include <thread>
 
-#include "assert.h"
 #include "cbuf_stream.h"
 #include "gtest/gtest.h"
 #include "image.h"
 #include "inctype.h"
 #include "ulogger.h"
 
-namespace std {
-namespace filesystem = experimental::filesystem;
-}
+#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
+    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
+#include <filesystem>
+namespace fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
 
 void set_data(messages::image& img, unsigned seed) {
   srand(seed);
@@ -29,7 +31,7 @@ void set_data(messages::image& img, unsigned seed) {
 }
 
 TEST(RecordOneMessage, ULogger) {
-  std::string currentpath = std::filesystem::current_path();
+  std::string currentpath = fs::current_path();
   // printf( "currentpath %s\n", currentpath.c_str() );
   ULogger::getULogger()->setLogPath(currentpath);
 
@@ -50,14 +52,14 @@ TEST(RecordOneMessage, ULogger) {
   ULogger::endLogging();
 
   // printf( "the filename is %s\n", filename2.c_str() );
-  EXPECT_TRUE(std::filesystem::exists(filename.c_str()));
+  EXPECT_TRUE(fs::exists(filename.c_str()));
 
   // cleanup test residue
   unlink(filename.c_str());
 }
 
 TEST(RecordManyMessages, ULogger) {
-  std::string currentpath = std::filesystem::current_path();
+  std::string currentpath = fs::current_path();
   // printf( "currentpath %s\n", currentpath.c_str() );
   ULogger::getULogger()->setLogPath(currentpath.c_str());
 
@@ -82,7 +84,7 @@ TEST(RecordManyMessages, ULogger) {
   ULogger::endLogging();
 
   // printf( "the filename is %s\n", filename2.c_str() );
-  EXPECT_TRUE(std::filesystem::exists(filename.c_str()));
+  EXPECT_TRUE(fs::exists(filename.c_str()));
 
   // cleanup test residue
   unlink(filename.c_str());

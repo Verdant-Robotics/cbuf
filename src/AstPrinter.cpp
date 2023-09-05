@@ -1,8 +1,8 @@
 #include "AstPrinter.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+
+#include "ast.h"
 
 // clang-format off
 static const char* ElementTypeToStr[] = {
@@ -25,6 +25,42 @@ static const char* ElementTypeToStr[] = {
 AstPrinter::AstPrinter() {}
 
 AstPrinter::~AstPrinter() {}
+
+static void PrintAstValue(const ast_value* val, StdStringBuffer* buffer) {
+  switch (val->valtype) {
+    case VALTYPE_INTEGER:
+      buffer->print_no("%zd", val->int_val);
+      break;
+    case VALTYPE_FLOAT:
+      buffer->print_no("%f", val->float_val);
+      break;
+    case VALTYPE_BOOL:
+      buffer->print_no("%s", val->bool_val ? "true" : "false");
+      break;
+    case VALTYPE_STRING:
+      buffer->print_no("\"%s\"", val->str_val);
+      break;
+    case VALTYPE_ARRAY: {
+      buffer->print_no("{");
+      auto arr_val = static_cast<const ast_array_value*>(val);
+      for (auto v = arr_val->values.begin(); v != arr_val->values.end(); ++v) {
+        PrintAstValue(*v, buffer);
+        if (std::next(v) != arr_val->values.end()) {
+          buffer->print_no(", ");
+        }
+      }
+      buffer->print_no("}");
+      break;
+    }
+    case VALTYPE_IDENTIFIER:
+      buffer->print_no("%s", val->str_val);
+      break;
+    default:
+      // TODO(kartikarcot): Need to relay the error to the user somehow
+      printf("[FATAL] Unknown value provided to PrintAstValue!\n");
+      exit(1);
+  }
+}
 
 void AstPrinter::print_elem(ast_element* elem) {
   ast_array_definition* ar = elem->array_suffix;
@@ -75,7 +111,9 @@ void AstPrinter::print_elem(ast_element* elem) {
     ar = ar->next;
   }
   if (elem->init_value != nullptr) {
-    buffer->print_no(" = %s", elem->init_value);
+    auto& val = elem->init_value;
+    buffer->print_no(" = ");
+    PrintAstValue(val, buffer);
   }
   if (elem->is_compact_array) buffer->print_no(" @compact");
   buffer->print_no(";\n");
@@ -85,8 +123,12 @@ void AstPrinter::print_enum(ast_enum* enm) {
   printed_types[enm] = 1;
   buffer->print("enum %s{\n", enm->name);
   buffer->increase_ident();
-  for (auto* el : enm->elements) {
-    buffer->print("%s,\n", el);
+  for (auto& el : enm->elements) {
+    if (el.item_assigned) {
+      buffer->print("%s = %zd,\n", el.item_name, el.item_value);
+    } else {
+      buffer->print("%s,\n", el.item_name);
+    }
   }
   buffer->decrease_ident();
   buffer->print("}\n");

@@ -235,6 +235,7 @@ void Lexer::parseNumber(Token& tok, char c) {
   int dec_index = 0;
   char snum[64] = {};
   char* s = snum;
+  tok._is_hex = false;
 
   *s++ = c;
 
@@ -313,10 +314,14 @@ void Lexer::Error(const char* msg, ...) {
   printf("%s:%d:%d: error: ", file->getFilename(), loc.line, loc.col);
 
   va_start(args, msg);
+#ifdef __llvm__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
   vprintf(msg, args);
+#ifdef __llvm__
 #pragma clang diagnostic pop
+#endif
   va_end(args);
   exit(1);
 }

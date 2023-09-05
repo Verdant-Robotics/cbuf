@@ -1,5 +1,7 @@
 namespace messages
 {
+    const string CSTRING = "This is a const string";
+
     struct inctype
     {
         short_string sensor_name = "somename"; // short string is a POD, fixed size string

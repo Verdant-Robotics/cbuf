@@ -3,11 +3,22 @@
 #include <hjson.h>
 
 #include <functional>
+#include <optional>
+#include <set>
 #include <unordered_map>
 
 #include "CBufParser.h"
-#include "cbuf_stream.h"
+#include "cbuf_readerbase.h"
 #include "vlog.h"
+
+#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
+    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
+#include <filesystem>
+namespace fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
 
 template <typename T>
 void loadFromJson(const Hjson::Value& json, T& obj);
@@ -38,16 +49,17 @@ class CBufHandler : public CBufHandlerBase {
   CBufMessageHandler<TApp, CBufMsg> handler = nullptr;
   CBufMsg* msg = nullptr;
   CBufParser* parser = nullptr;
-  bool allow_json_conversion = true;
-  bool warned_json = false;
+  CBufParser* parserCurrent = nullptr;
+  bool allow_conversion = true;
+  bool warned_conversion = false;
 
 public:
-  CBufHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
+  CBufHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_conv = true,
               bool process_always = false)
       : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
       , caller(owner)
       , handler(h)
-      , allow_json_conversion(allow_json) {}
+      , allow_conversion(allow_conv) {}
 
   ~CBufHandler() override {
     if (msg) {
@@ -74,8 +86,8 @@ public:
     }
     auto msg_type = cis.get_string_for_hash(hash);
     if (msg_type == CBufMsg::TYPE_STRING) {
-      if (allow_json_conversion) {
-        // the hash did not match but has the same name, try to do json conversion
+      if (allow_conversion) {
+        // the hash did not match but has the same name, try to do conversion
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
@@ -84,23 +96,120 @@ public:
           }
         }
 
-        // Initialize the fields on the cbuf in order to ensure when json backwards compat
+        if (parserCurrent == nullptr) {
+          parserCurrent = new CBufParser();
+          if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
+                       CBufMsg::TYPE_STRING);
+            return false;
+          }
+        }
+
+        // Initialize the fields on the cbuf in order to ensure when backwards compat
         // does not fill in fields (that are not there) still have sane values
         msg->Init();
-        Hjson::Value msg_data;
-        parser->FillHjson(CBufMsg::TYPE_STRING, cis.get_current_ptr(), cis.get_next_size(), msg_data, false);
-        loadFromJson(msg_data, *msg);
+        auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
+                                              cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
+                                              (unsigned char*)msg, sizeof(CBufMsg));
+        if (fillret == 0) return false;
         msg->preamble.packet_timest = cis.get_next_timestamp();
 
         (caller->*handler)(msg);
-        // loadFromJson does not consume the message in cis, we need to advance it
-        cis.skip_message();
         return true;
       }
-      if (!warned_json) {
-        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but JSON conversion is not allowed",
+      if (!warned_conversion) {
+        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but conversion is not allowed",
                    CBufMsg::TYPE_STRING);
-        warned_json = true;
+        warned_conversion = true;
+      }
+    }
+    return false;
+  }
+};
+
+template <typename TApp, typename CBufMsg>
+using CBufBoxMessageHandler = void (TApp::*)(CBufMsg* msg, const std::string& box_name);
+
+template <typename TApp, typename CBufMsg>
+class CBufBoxHandler : public CBufHandlerBase {
+  TApp* caller = nullptr;
+  CBufBoxMessageHandler<TApp, CBufMsg> handler = nullptr;
+  CBufMsg* msg = nullptr;
+  CBufParser* parser = nullptr;
+  CBufParser* parserCurrent = nullptr;
+  bool allow_conversion = true;
+  bool warned_conversion = false;
+
+public:
+  CBufBoxHandler(TApp* owner, CBufBoxMessageHandler<TApp, CBufMsg> h, bool allow_conv = true,
+                 bool process_always = false)
+      : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
+      , caller(owner)
+      , handler(h)
+      , allow_conversion(allow_conv) {}
+
+  ~CBufBoxHandler() override {
+    if (msg) {
+      delete msg;
+      msg = nullptr;
+    }
+  }
+
+  bool processMessage(cbuf_istream& cis) override {
+    if (cis.empty()) return true;
+    if (msg == nullptr) {
+      msg = new CBufMsg();
+    }
+    auto hash = cis.get_next_hash();
+
+    if (hash == CBufMsg::TYPE_HASH) {
+      bool ret = cis.deserialize(msg);
+      if (!ret) {
+        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        return false;
+      }
+      // assuming the istream has been instantiated
+
+      (caller->*handler)(msg, fs::path(cis.filename()).filename());
+      return true;
+    }
+    auto msg_type = cis.get_string_for_hash(hash);
+    if (msg_type == CBufMsg::TYPE_STRING) {
+      if (allow_conversion) {
+        // the hash did not match but has the same name, try to do conversion
+        if (parser == nullptr) {
+          parser = new CBufParser();
+          if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            return false;
+          }
+        }
+
+        if (parserCurrent == nullptr) {
+          parserCurrent = new CBufParser();
+          if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
+                       CBufMsg::TYPE_STRING);
+            return false;
+          }
+        }
+
+        // Initialize the fields on the cbuf in order to ensure when backwards compat
+        // does not fill in fields (that are not there) still have sane values
+        msg->Init();
+        auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
+                                              cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
+                                              (unsigned char*)msg, sizeof(CBufMsg));
+        if (fillret == 0) return false;
+        msg->preamble.packet_timest = cis.get_next_timestamp();
+
+        (caller->*handler)(msg, fs::path(cis.filename()).filename());
+        return true;
+      }
+      if (!warned_conversion) {
+        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but conversion is not allowed",
+                   CBufMsg::TYPE_STRING);
+        warned_conversion = true;
       }
     }
     return false;
@@ -111,23 +220,27 @@ template <typename CBufMsg>
 using CBufHandlerLambdaFn = std::function<void(CBufMsg*)>;
 
 template <typename CBufMsg>
+using CBufBoxHandlerLambdaFn = std::function<void(CBufMsg*, const std::string& box_name)>;
+
+template <typename CBufMsg>
 class CBufHandlerLambda : public CBufHandlerBase {
   CBufHandlerLambdaFn<CBufMsg> handler = nullptr;
   CBufMsg* msg = nullptr;
   CBufParser* parser = nullptr;
-  bool allow_json_conversion = true;
-  bool warned_json = false;
+  CBufParser* parserCurrent = nullptr;
+  bool allow_conversion = true;
+  bool warned_conversion = false;
 
 public:
-  CBufHandlerLambda(void (*h)(CBufMsg*), bool allow_json = true, bool process_always = false)
+  CBufHandlerLambda(void (*h)(CBufMsg*), bool allow_conv = true, bool process_always = false)
       : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
       , handler(h)
-      , allow_json_conversion(allow_json) {}
+      , allow_conversion(allow_conv) {}
 
-  CBufHandlerLambda(std::function<void(CBufMsg*)> h, bool allow_json = true, bool process_always = false)
+  CBufHandlerLambda(std::function<void(CBufMsg*)> h, bool allow_conv = true, bool process_always = false)
       : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
       , handler(h)
-      , allow_json_conversion(allow_json) {}
+      , allow_conversion(allow_conv) {}
 
   ~CBufHandlerLambda() override {
     if (msg) {
@@ -153,7 +266,7 @@ public:
     }
     auto msg_type = cis.get_string_for_hash(hash);
     if (msg_type == CBufMsg::TYPE_STRING) {
-      if (allow_json_conversion) {
+      if (allow_conversion) {
         // the hash did not match but has the same name, try to do json conversion
         if (parser == nullptr) {
           parser = new CBufParser();
@@ -163,22 +276,30 @@ public:
           }
         }
 
+        if (parserCurrent == nullptr) {
+          parserCurrent = new CBufParser();
+          if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
+                       CBufMsg::TYPE_STRING);
+            return false;
+          }
+        }
+
         // Initialize the fields on the cbuf in order to ensure when json backwards compat
         // does not fill in fields (that are not there) still have sane values
         msg->Init();
-        Hjson::Value msg_data;
-        parser->FillHjson(CBufMsg::TYPE_STRING, cis.get_current_ptr(), cis.get_next_size(), msg_data, false);
-        loadFromJson(msg_data, *msg);
+        auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
+                                              cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
+                                              (unsigned char*)msg, sizeof(CBufMsg));
+        if (fillret == 0) return false;
 
         handler(msg);
-        // loadFromJson does not consume the message in cis, we need to advance it
-        cis.skip_message();
         return true;
       }
-      if (!warned_json) {
-        vlog_error(VCAT_GENERAL, "Version mismatch for message %s but JSON conversion is not allowed",
+      if (!warned_conversion) {
+        vlog_error(VCAT_GENERAL, "Version mismatch for message %s but conversion is not allowed",
                    CBufMsg::TYPE_STRING);
-        warned_json = true;
+        warned_conversion = true;
       }
     }
 
@@ -186,143 +307,124 @@ public:
   }
 };
 
-class CBufReader {
+// Partial specialisation of the template
+template <typename CBufMsg>
+class CBufBoxHandlerLambda : public CBufHandlerBase {
+  CBufBoxHandlerLambdaFn<CBufMsg> handler = nullptr;
+  CBufMsg* msg = nullptr;
+  CBufParser* parser = nullptr;
+  CBufParser* parserCurrent = nullptr;
+  bool allow_conversion = true;
+  bool warned_conversion = false;
+
 public:
-  struct Options {
-    Options() {}
-    bool try_recovery = false;  // whether to try to continue past corruptions.
-  };
+  CBufBoxHandlerLambda(void (*h)(CBufMsg*, std::string), bool allow_json = true, bool process_always = false)
+      : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
+      , handler(h)
+      , allow_conversion(allow_json) {}
 
-  int num_corruptions = 0;  // counter of corruptions found.
+  CBufBoxHandlerLambda(std::function<void(CBufMsg*, std::string)> h, bool allow_conv = true,
+                       bool process_always = false)
+      : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
+      , handler(h)
+      , allow_conversion(allow_conv) {}
 
-private:
-  static constexpr double VERY_LARGE_TIMESTAMP = 1e15;
-  std::string ulog_path_;
-  std::string role_filter_;
-  std::unordered_map<std::string, std::shared_ptr<CBufHandlerBase>> msg_map;
-  Options options_;
-
-  struct StreamInfo {
-    cbuf_istream* cis;
-    double packet_time;
-    std::string filename;
-  };
-
-  std::vector<StreamInfo*> input_streams;
-  StreamInfo* next_si = nullptr;
-  bool finish_reading = false;
-  double startTime = -1;
-  double endTime = -1;
-
-  // returns true if time t is within our range
-  bool is_valid_early(double t) {
-    if (startTime > 0) {
-      if (t < startTime) {
-        return false;
-      }
+  ~CBufBoxHandlerLambda() override {
+    if (msg) {
+      delete msg;
+      msg = nullptr;
     }
-    return true;
   }
 
-  // returns true if time t is within our range
-  bool is_valid_late(double t) {
-    if (endTime > 0) {
-      if (t > endTime) {
-        return false;
-      }
+  bool processMessage(cbuf_istream& cis) override {
+    if (cis.empty()) return true;
+    if (msg == nullptr) {
+      msg = new CBufMsg();
     }
-    return true;
-  }
-
-  bool computeNextSi() {
-    // nothing else to do
-    if (finish_reading) return false;
-
-    // Compute the correct packet time and ensure we skip corruption
-    for (auto si : input_streams) {
-      if (si->cis->empty()) {
-        si->packet_time = VERY_LARGE_TIMESTAMP;
-        continue;
-      }
-      bool corrupted = !si->cis->check_next_preamble() || (si->cis->get_next_size() == 0);
-      if (!options_.try_recovery && corrupted) {
-        fprintf(stderr, "** Failed to process corrupted cbuf file %s; halting\n", si->filename.c_str());
-        num_corruptions++;
+    auto hash = cis.get_next_hash();
+    if (hash == CBufMsg::TYPE_HASH) {
+      bool ret = cis.deserialize(msg);
+      if (!ret) {
+        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
         return false;
       }
-
-      while (corrupted && !si->cis->empty()) {
-        num_corruptions++;
-        auto msize = si->cis->get_next_size();
-        auto nhash = si->cis->get_next_hash();
-        fprintf(stderr,
-                " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: %zX) [FileSize %zu, "
-                "Offset "
-                "%zu], this indicates a corrupted ulog. Trying to recover...\n",
-                si->filename.c_str(), msize, nhash, si->cis->get_filesize(), si->cis->get_current_offset());
-        auto off = si->cis->get_current_offset();
-        if (si->cis->skip_corrupted()) {
-          fprintf(stderr, "  => Recovered from corruption, skipped %zu bytes\n",
-                  si->cis->get_current_offset() - off);
+      // assuming the istream has been instantiated
+      (handler)(msg, fs::path(cis.filename()).filename());
+      return true;
+    }
+    auto msg_type = cis.get_string_for_hash(hash);
+    if (msg_type == CBufMsg::TYPE_STRING) {
+      if (allow_conversion) {
+        // the hash did not match but has the same name, try to do json conversion
+        if (parser == nullptr) {
+          parser = new CBufParser();
+          if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            return false;
+          }
         }
-        if (si->cis->empty()) {
-          corrupted = false;
-          break;
+
+        if (parserCurrent == nullptr) {
+          parserCurrent = new CBufParser();
+          if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
+                       CBufMsg::TYPE_STRING);
+            return false;
+          }
         }
-        corrupted = !si->cis->check_next_preamble() || (si->cis->get_next_size() == 0);
+
+        // Initialize the fields on the cbuf in order to ensure when backwards compat
+        // does not fill in fields (that are not there) still have sane values
+        msg->Init();
+        auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
+                                              cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
+                                              (unsigned char*)msg, sizeof(CBufMsg));
+        if (fillret == 0) return false;
+
+        // assuming the istream has been instantiated
+        (handler)(msg, fs::path(cis.filename()).filename());
+        return true;
       }
-      if (corrupted || si->cis->empty()) {
-        si->packet_time = VERY_LARGE_TIMESTAMP;
-      } else {
-        si->packet_time = si->cis->get_next_timestamp();
+      if (!warned_conversion) {
+        vlog_error(VCAT_GENERAL, "Version mismatch for message %s but conversion is not allowed",
+                   CBufMsg::TYPE_STRING);
+        warned_conversion = true;
       }
     }
 
-    // Find earliest packet
-    StreamInfo* prev_si = next_si;
-    next_si = input_streams[0];
-    for (auto si : input_streams) {
-      if (si->packet_time < next_si->packet_time) {
-        next_si = si;
-      }
-    }
-
-    if (next_si != prev_si) {
-      vlog_fine(VCAT_GENERAL, "[cbuf_reader] ************** %s ************", next_si->filename.c_str());
-    }
-
-    if (next_si->cis->empty() || !is_valid_late(next_si->packet_time)) {
-      finish_reading = true;
-      // nothing more to do here
-      return false;
-    }
-
-    return true;
+    return false;
   }
+};
+
+class CBufReader : public CBufReaderBase {
+  std::unordered_map<std::string, std::vector<std::shared_ptr<CBufHandlerBase>>> msg_map;
+  std::function<void(cbuf_istream*)> cis_callback_;
+  bool use_cis_callback_ = false;
 
 public:
   CBufReader(const std::string& ulog_path, const Options& options = Options())
-      : ulog_path_(ulog_path)
-      , options_(options) {}
+      : CBufReaderBase(ulog_path, options) {}
   CBufReader(const Options& options = Options())
-      : options_(options) {}
+      : CBufReaderBase(options) {}
 
-  void setOptions(const Options& options) { options_ = options; }
-  void setULogPath(const std::string& ulog_path) { ulog_path_ = ulog_path; }
-  void setRoleFilter(const std::string& filter) { role_filter_ = filter; }
-
-  bool addHandler(const std::string& msg_type, std::shared_ptr<CBufHandlerBase> handler) {
-    if (msg_map.count(msg_type) > 0) {
-      vlog_error(VCAT_GENERAL, "Trying to register a handler twice for message type %s is not allowed",
-                 msg_type.c_str());
-      return false;
-    }
-    msg_map[msg_type] = handler;
-    return true;
+  [[deprecated]] void setRoleFilter(const std::string& filter) {
+    vlog_warning(VCAT_GENERAL,
+                 "This function is depracated. Please update your code. Read this document: "
+                 "https://drive.google.com/file/d/1G6PejUiUGKf_utZxq0UbfUb4kBC-OK3H/view?usp=sharing");
+    source_filters_.push_back(filter);
+  }
+  [[deprecated]] std::string getRoleFilter() const {
+    vlog_warning(VCAT_GENERAL,
+                 "This function is depracated. Please update your code. Read this document: "
+                 "https://drive.google.com/file/d/1G6PejUiUGKf_utZxq0UbfUb4kBC-OK3H/view?usp=sharing");
+    if (source_filters_.empty()) return "";
+    return source_filters_.front();
   }
 
-  void setStartTime(double t) { startTime = t; }
-  void setEndTime(double t) { endTime = t; }
+  bool addHandler(const std::string& msg_type, std::shared_ptr<CBufHandlerBase> handler) {
+    msg_map[msg_type].push_back(handler);
+    return true;
+  }
 
   template <typename TApp, typename CBufMsg>
   bool addHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
@@ -333,7 +435,7 @@ public:
   }
 
   template <typename CBufMsg>
-  bool addHandler(CBufHandlerLambda<CBufMsg> h, bool allow_json = true, bool process_always = false) {
+  bool addHandler(CBufHandlerLambdaFn<CBufMsg> h, bool allow_json = true, bool process_always = false) {
     std::shared_ptr<CBufHandlerBase> ptr(new CBufHandlerLambda<CBufMsg>(h, allow_json, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
@@ -344,12 +446,32 @@ public:
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
-  bool openUlog(bool error_ok = false);
+  template <typename TApp, typename CBufMsg>
+  bool addHandler(TApp* owner, CBufBoxMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
+                  bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(
+        new CBufBoxHandler<TApp, CBufMsg>(owner, h, allow_json, process_always));
+    return addHandler(CBufMsg::TYPE_STRING, ptr);
+  }
 
-  double getNextTimestamp() {
-    if (!computeNextSi()) return -1;
+  template <typename CBufMsg>
+  bool addHandler(CBufBoxHandlerLambdaFn<CBufMsg> h, bool allow_json = true, bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(new CBufBoxHandlerLambda<CBufMsg>(h, allow_json, process_always));
+    return addHandler(CBufMsg::TYPE_STRING, ptr);
+  }
 
-    return next_si->cis->get_next_timestamp();
+  template <typename CBufMsg>
+  bool addHandlerFn(std::function<void(CBufMsg*, std::string)> h, bool allow_json = true,
+                    bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(new CBufBoxHandlerLambda<CBufMsg>(h, allow_json, process_always));
+    return addHandler(CBufMsg::TYPE_STRING, ptr);
+  }
+
+  // CBufIStream Callback can be used to process a message directly using a cbuf_istream instead of
+  // CBufReader doing the message decoding
+  void addCbufIStreamCallback(std::function<void(cbuf_istream*)> h) {
+    cis_callback_ = h;
+    use_cis_callback_ = true;
   }
 
   bool processMessage() {
@@ -358,27 +480,231 @@ public:
     auto nhash = next_si->cis->get_next_hash();
     cbuf_istream* next_cis = next_si->cis;
     auto str = next_cis->get_string_for_hash(nhash);
+    // check if the topic name for this message has a namespace
 
     auto msize = next_cis->get_next_size();
     VLOG_ASSERT(msize != 0 && next_cis->check_next_preamble(),
                 "All corrupted cbuf issues should be handled on computeNextSi");
 
-    //    vlog_finer(VCAT_GENERAL, "** Processing type %s", str.c_str());
-    if (msg_map.count(str) > 0) {
-      bool skip = false;
-      if (!msg_map[str]->process_always()) {
-        skip = !is_valid_early(next_cis->get_next_timestamp());
-      }
-      if (!skip) {
-        bool consumed = msg_map[str]->processMessage(*next_cis);
-        if (!consumed) next_cis->skip_message();
-      } else {
-        if (!next_cis->skip_message()) return false;
-      }
-    } else {
-      if (!next_cis->skip_message()) return false;
+    if (use_cis_callback_) {
+      cis_callback_(next_cis);
     }
+
+    if (msg_map.count(str) > 0) {
+      for (auto& handler : msg_map[str]) {
+        if (handler->process_always() || is_valid_early(next_cis->get_next_timestamp())) {
+          handler->processMessage(*next_cis);
+        }
+      }
+    }
+
+    if (!next_cis->skip_message()) return false;
 
     return true;
   }
+};
+
+class CBufInfoGetterBase {
+public:
+  CBufInfoGetterBase() {}
+  virtual ~CBufInfoGetterBase() {}
+
+  virtual bool processMessage(cbuf_istream& cis) = 0;
+
+  virtual std::optional<uint32_t> getCurrentOffset() = 0;
+  virtual std::optional<double> getCurrentTimestamp() = 0;
+};
+
+template <typename TApp, typename CBufMsg>
+using CBufOffsetGetter = uint32_t (TApp::*)(CBufMsg* msg);
+
+template <typename TApp, typename CBufMsg>
+using CBufTimestampGetter = double (TApp::*)(CBufMsg* msg);
+
+template <typename TApp, typename CBufMsg>
+class CBufInfoGetter : public CBufInfoGetterBase {
+  TApp* caller = nullptr;
+  CBufOffsetGetter<TApp, CBufMsg> offsetGetter_ = nullptr;
+  CBufTimestampGetter<TApp, CBufMsg> timestampGetter_ = nullptr;
+  CBufMsg* msg = nullptr;
+  CBufParser* parser = nullptr;
+  CBufParser* parserCurrent = nullptr;
+  bool allow_conversion = true;
+  bool warned_conversion = false;
+  bool process_always_;
+
+public:
+  CBufInfoGetter(TApp* owner, CBufOffsetGetter<TApp, CBufMsg> offsetGetter,
+                 CBufTimestampGetter<TApp, CBufMsg> timestampGetter, bool allow_conv = true,
+                 bool process_always = false)
+      : CBufInfoGetterBase()
+      , caller(owner)
+      , offsetGetter_(offsetGetter)
+      , timestampGetter_(timestampGetter)
+      , allow_conversion(allow_conv)
+      , process_always_(process_always) {}
+
+  ~CBufInfoGetter() override {
+    if (msg) {
+      delete msg;
+      msg = nullptr;
+    }
+  }
+
+  bool isMessageOfType(cbuf_istream& cis, std::string_view type) {
+    return cis.get_string_for_hash(cis.get_next_hash()) == type;
+  }
+
+  bool processMessage(cbuf_istream& cis) override {
+    if (cis.empty()) return true;
+    if (msg == nullptr) {
+      msg = new CBufMsg();
+    }
+    auto hash = cis.get_next_hash();
+
+    if (hash == CBufMsg::TYPE_HASH) {
+      bool ret = cis.deserialize(msg);
+      if (!ret) {
+        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        return false;
+      }
+      return true;
+    }
+    auto msg_type = cis.get_string_for_hash(hash);
+    if (msg_type == CBufMsg::TYPE_STRING) {
+      if (allow_conversion) {
+        // the hash did not match but has the same name, try to do conversion
+        if (parser == nullptr) {
+          parser = new CBufParser();
+          if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            return false;
+          }
+        }
+
+        if (parserCurrent == nullptr) {
+          parserCurrent = new CBufParser();
+          if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
+                       CBufMsg::TYPE_STRING);
+            return false;
+          }
+        }
+
+        // Initialize the fields on the cbuf in order to ensure when backwards compat
+        // does not fill in fields (that are not there) still have sane values
+        msg->Init();
+        auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
+                                              cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
+                                              (unsigned char*)msg, sizeof(CBufMsg));
+        if (fillret == 0) return false;
+        msg->preamble.packet_timest = cis.get_next_timestamp();
+
+        return true;
+      }
+      if (!warned_conversion) {
+        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but conversion is not allowed",
+                   CBufMsg::TYPE_STRING);
+        warned_conversion = true;
+      }
+    }
+    return false;
+  }
+
+  std::optional<uint32_t> getCurrentOffset() override {
+    if (msg != nullptr) {
+      return (caller->*offsetGetter_)(msg);
+    }
+
+    return {};
+  }
+
+  std::optional<double> getCurrentTimestamp() override {
+    if (msg != nullptr) {
+      return (caller->*timestampGetter_)(msg);
+    }
+
+    return {};
+  }
+};
+
+class CBufReaderWindow : public CBufReaderBase {
+  uint32_t window_size_;  // how many frames left and right to load
+  uint32_t max_offset_;
+  std::map<double, uint32_t> timestampMap_;
+  std::map<uint32_t, std::vector<size_t>> stateMap_;
+  std::string box_name_;
+  std::unordered_map<std::string, std::vector<std::shared_ptr<CBufHandlerBase>>> msg_map;
+  std::unordered_map<std::string, std::shared_ptr<CBufInfoGetterBase>> info_getters_map;
+  std::vector<size_t> lowest_loaded_state_;
+  std::vector<size_t> highest_loaded_state_;
+  bool is_external_ = false;
+  std::string last_msg_type_;
+
+public:
+  CBufReaderWindow(const std::string& ulog_path, const Options& options = Options())
+      : CBufReaderBase(ulog_path, options) {}
+  CBufReaderWindow(const Options& options = Options())
+      : CBufReaderBase(options) {}
+
+  bool addHandler(const std::string& msg_type, std::shared_ptr<CBufHandlerBase> handler) {
+    msg_map[msg_type].push_back(handler);
+    return true;
+  }
+
+  template <typename TApp, typename CBufMsg>
+  bool addHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
+                  bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(
+        new CBufHandler<TApp, CBufMsg>(owner, h, allow_json, process_always));
+    return addHandler(CBufMsg::TYPE_STRING, ptr);
+  }
+
+  bool addInfoGetter(const std::string& msg_type, std::shared_ptr<CBufInfoGetterBase> getter) {
+    info_getters_map[msg_type] = getter;
+    return true;
+  }
+
+  template <typename TApp, typename CBufMsg>
+  bool addInfoGetter(TApp* owner, CBufOffsetGetter<TApp, CBufMsg> ig, CBufTimestampGetter<TApp, CBufMsg> tg) {
+    std::shared_ptr<CBufInfoGetterBase> ptr(new CBufInfoGetter<TApp, CBufMsg>(owner, ig, tg));
+    return addInfoGetter(CBufMsg::TYPE_STRING, ptr);
+  }
+
+  void setBoxName(const std::string box_name) { box_name_ = box_name; }
+  void setWindowSize(const uint32_t window_size) { window_size_ = window_size; }
+  void setExternal() { is_external_ = true; }
+
+  bool initialize();
+
+  bool loadWindow(const uint32_t seq_offset);
+
+  size_t GetNumFrames() const { return stateMap_.size(); }
+
+  uint32_t timestampToOffset(double timestamp);
+
+  uint32_t maxSequenceOffset() { return max_offset_ - 1; }
+
+private:
+  bool processMessage();
+  bool processSilently();
+  bool processGetters();
+
+  void removeHandlers() { msg_map.clear(); }
+
+  bool jumpToOffset(const uint32_t);
+
+  bool isCorrectBox() const { return next_si->cis->filename().find(box_name_) != std::string::npos; }
+  std::string getMessageType() { return next_si->cis->get_string_for_hash(next_si->cis->get_next_hash()); }
+
+  std::optional<uint32_t> getCurrentOffset();
+  std::optional<double> getCurrentTimestamp();
+
+  // functions to handle which file states we have already loaded to avoid double loading in our maps
+  std::vector<size_t> getState() const;
+  bool isStateLoaded();
+  void updateLoadedStates();
+  void updateCurrentLoadedStates();
+  void initializeCurrentLoadedStates();
+  void keepLoadedStates(const uint32_t low_offset, const uint32_t high_offset);
 };

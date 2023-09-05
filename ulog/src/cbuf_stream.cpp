@@ -5,11 +5,8 @@
 #include <metadata.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <map>
 
 #include "cbuf_preamble.h"
 
@@ -20,15 +17,25 @@ static double now() {
   return now;
 }
 
-void serialize_metadata_cbuf(const char* msg_meta, uint64_t hash, const char* msg_name, void* ctx) {
+void serialize_metadata_cbuf_ostream(const char* msg_meta, uint64_t hash, const char* msg_name, void* ctx) {
   cbuf_ostream* cos = static_cast<cbuf_ostream*>(ctx);
   cos->serialize_metadata(msg_meta, hash, msg_name);
 }
 
+void serialize_metadata_cbuf_cstream(const char* msg_meta, uint64_t hash, const char* msg_name, void* ctx) {
+  cbuf_cstream* ccs = static_cast<cbuf_cstream*>(ctx);
+  ccs->serialize_metadata(msg_meta, hash, msg_name);
+}
+
 double cbuf_ostream::now() const { return ::now(); }
 
-void cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const char* msg_name) {
-  if (dictionary.count(hash) > 0) return;
+ssize_t cbuf_ostream::file_offset() const {
+  if (stream < 0) return -1;
+  return lseek64(stream, 0, SEEK_CUR);
+}
+
+int cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const char* msg_name) {
+  if (dictionary.count(hash) > 0) return 0;
   assert(hash != 0);
 
   cbufmsg::metadata mdata;
@@ -39,7 +46,11 @@ void cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const
   char* ptr = mdata.encode();
   char* write_ptr = ptr;
   int bytes_to_write = mdata.encode_size();
+  int total_bytes_to_write = bytes_to_write;
   int error_count = 0;
+  if (pre_file_write_callback_) {
+    pre_file_write_callback_(FileWriteType::METADATA);
+  }
   do {
     int result = write(stream, write_ptr, bytes_to_write);
     if (result > 0) {
@@ -49,14 +60,22 @@ void cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const
       if (errno != EAGAIN) {
         perror("Cbuf serialize metadata writing error");
       }
+      if (exit_early_on_write_failure) {
+        mdata.free_encode(ptr);
+        return errno;
+      }
       error_count++;
       if (error_count > 10) {
         assert(false);
       }
     }
   } while (bytes_to_write > 0);
+  if (file_write_callback_) {
+    file_write_callback_(ptr, total_bytes_to_write, write_callback_usr_ptr_);
+  }
   mdata.free_encode(ptr);
   dictionary[hash] = msg_name;
+  return 0;
 }
 
 void cbuf_ostream::close() {
@@ -68,7 +87,8 @@ void cbuf_ostream::close() {
 }
 
 bool cbuf_ostream::open_file(const char* fname) {
-  stream = open(fname, O_WRONLY | O_APPEND | O_CREAT, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+  stream =
+      open(fname, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (stream == -1) {
     fprintf(stderr, "Could not open file %s for writing\n", fname);
     perror("Error opening file ");
@@ -79,7 +99,11 @@ bool cbuf_ostream::open_file(const char* fname) {
   return stream != -1;
 }
 
-bool cbuf_ostream::open_socket(const char* ip, int port) { return false; }
+bool cbuf_ostream::open_socket(const char* ip, int port) {
+  (void)ip;
+  (void)port;
+  return false;
+}
 
 static void split_namespace(const std::string& full_name, std::string& spname, std::string& name) {
   std::string::size_type pos = 0;
@@ -130,16 +154,20 @@ static bool name_passes_filter(const std::vector<std::string>& filter, bool filt
 }
 
 bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string>& filter,
-                                bool filter_positive) {
+                                bool filter_positive, double earlytime, double latetime) {
   bool ret;
+  bool isMeta = false;
   auto hash = cis->__get_next_hash();
   auto nsize = cis->__get_next_size();
 
   if (hash == cbufmsg::metadata::TYPE_HASH) {
-    // we merge all metadata, checking that there are no dupes or mismatches
     cbufmsg::metadata mdata;
     ret = mdata.decode((char*)cis->ptr, cis->rem_size);
     if (!ret) return false;
+
+    isMeta = true;
+    // Important, redefine the hash here so the filter works later on
+    hash = mdata.msg_hash;
 
     if (dictionary.count(mdata.msg_hash) == 0) {
       dictionary[mdata.msg_hash] = mdata.msg_name;
@@ -151,26 +179,43 @@ bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string
       }
     }
   } else {
-    // This is a normal packet, apply filters
     if (dictionary.count(hash) == 0) {
       fprintf(stderr, "processing packet with hash 0x%lX does not have metadata\n", hash);
-    } else {
-      auto& msg_name = dictionary.at(hash);
-      if (!name_passes_filter(filter, filter_positive, msg_name)) {
-        // not an error, just skip
-        cis->updatePtrAndSize(nsize);
-        return true;
-      }
     }
   }
 
-  write(stream, cis->ptr, nsize);
+  auto& msg_name = dictionary.at(hash);
+  // Here we filter packets, metadata and normal ones. If we do not want a type,
+  // we skip its metadata and packets
+  if (!name_passes_filter(filter, filter_positive, msg_name)) {
+    // not an error, just skip
+    cis->updatePtrAndSize(nsize);
+    return true;
+  }
+
+  if (!isMeta) {
+    // Time filters do not apply to metadata messages
+    double packet_time = cis->__get_next_timestamp();
+    if ((packet_time < earlytime) || (packet_time > latetime)) {
+      // not an error, just skip
+      cis->updatePtrAndSize(nsize);
+      return true;
+    }
+  }
+  auto num = write(stream, cis->ptr, nsize);
+  if (num != nsize) {
+    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %ld\n", nsize, num);
+    return false;
+  }
+  if (file_write_callback_) {
+    file_write_callback_(cis->ptr, nsize, write_callback_usr_ptr_);
+  }
   cis->updatePtrAndSize(nsize);
   return true;
 }
 
 bool cbuf_ostream::merge(const std::vector<cbuf_istream*>& inputs, const std::vector<std::string>& filter,
-                         bool filter_positive) {
+                         bool filter_positive, double earlytime, double latetime) {
   bool ret;
   if (!is_open()) {
     return false;
@@ -198,7 +243,7 @@ bool cbuf_ostream::merge(const std::vector<cbuf_istream*>& inputs, const std::ve
       break;
     }
     // process the earliest packet
-    ret = merge_packet(cis, filter, filter_positive);
+    ret = merge_packet(cis, filter, filter_positive, earlytime, latetime);
     if (!ret) {
       return false;
     }
@@ -231,9 +276,43 @@ bool cbuf_istream::consume_internal() {
   return false;
 }
 
+const char* cbuf_istream::get_or_search_string_for_hash(uint64_t hash) {
+  if (metadictionary.count(hash) > 0) {
+    return metadictionary[hash].c_str();
+  }
+  auto old_ptr = ptr;
+  auto old_size = rem_size;
+  while (!empty()) {
+    auto msghash = __get_next_hash();
+    auto nsize = __get_next_size();
+
+    if (msghash == cbufmsg::metadata::TYPE_HASH) {
+      cbufmsg::metadata mdata;
+      bool ret = mdata.decode((char*)ptr, rem_size);
+      assert(ret);
+      (void)ret;
+      ptr += nsize;
+      rem_size -= nsize;
+      dictionary[mdata.msg_hash] = mdata.msg_name;
+      metadictionary[mdata.msg_hash] = mdata.msg_meta;
+
+      if (mdata.msg_hash == hash) {
+        ptr = old_ptr;
+        rem_size = old_size;
+        return metadictionary[mdata.msg_hash].c_str();
+      }
+    }
+    // Consunme the current message since it was not what we looked for
+    skip_message();
+  }
+  ptr = old_ptr;
+  rem_size = old_size;
+  return nullptr;
+}
+
 void cbuf_istream::close() {
   if (memmap_ptr != nullptr) {
-    munmap(memmap_ptr, filesize);
+    munmap((void*)memmap_ptr, filesize);
   }
   if (stream != -1) {
     ::close(stream);
@@ -242,6 +321,7 @@ void cbuf_istream::close() {
 }
 
 bool cbuf_istream::open_file(const char* fname) {
+  // copy file name
   stream = open(fname, O_RDONLY);
   if (stream == -1) {
     perror("Error opening file ");
@@ -257,13 +337,36 @@ bool cbuf_istream::open_file(const char* fname) {
 
   rem_size = filesize;
   ptr = start_ptr = memmap_ptr;
+  fname_ = fname;
   return true;
 }
 
-bool cbuf_istream::open_memory(unsigned char* data, size_t length) {
+bool cbuf_istream::open_memory(const unsigned char* data, size_t length) {
   rem_size = filesize = length;
   ptr = start_ptr = data;
   return true;
 }
 
-bool cbuf_istream::open_socket(const char* ip, int port) { return false; }
+bool cbuf_istream::open_socket(const char* ip, int port) {
+  (void)ip;
+  (void)port;
+  return false;
+}
+
+double cbuf_cstream::now() const { return ::now(); }
+
+void cbuf_cstream::serialize_metadata(const char* msg_meta, uint64_t hash, const char* msg_name) {
+  if (dictionary.count(hash) > 0) return;
+  assert(hash != 0);
+
+  cbufmsg::metadata mdata;
+  mdata.preamble.packet_timest = now();
+  mdata.msg_meta = msg_meta;
+  mdata.msg_hash = hash;
+  mdata.msg_name = msg_name;
+  int bytes_to_write = mdata.encode_size();
+  unsigned char* write_ptr = mem_alloc_callback_(bytes_to_write, usr_ptr_);
+  mdata.encode((char*)write_ptr, bytes_to_write);
+  write_complete_callback_(write_ptr, bytes_to_write, usr_ptr_);
+  dictionary[hash] = msg_name;
+}

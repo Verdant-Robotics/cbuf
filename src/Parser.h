@@ -9,6 +9,8 @@ struct Args {
   const char* srcfile = nullptr;
   const char* outfile = nullptr;
   const char* jsonfile = nullptr;
+  const char* depfile = nullptr;
+  bool help = false;
 };
 
 class Parser {
@@ -21,6 +23,15 @@ class Parser {
   ast_namespace* find_existing_namespace(const TextType name);
   void parseImport();
   ast_global* ParseInternal(ast_global* top);
+  ast_expression* parseLiteral();
+  ast_expression* parseSimpleLiteral();
+  ast_expression* parseArrayLiteral();
+  ast_expression* parseUnaryExpression();
+  ast_expression* parseBinOpExpressionRecursive(u32 oldprec, ast_expression* lhs);
+  ast_expression* parseBinOpExpression();
+  ast_expression* parseExpression();
+  ast_array_expression* parseArrayExpression();
+  ast_value* computeExpressionValue(ast_expression* expr);
 
 public:
   Lexer* lex = nullptr;

@@ -28,7 +28,13 @@ class CPrinter {
   void helper_print_array_suffix(ast_element* elem);
 
 public:
+  // Prints the main C header for a cbuf object
   void print(StdStringBuffer* buf, ast_global* top_ast, SymbolTable* symbols);
 
+  // Prints a C header with json calls used to load a cbuf with data from a json object
   void printLoader(StdStringBuffer* buf, ast_global* top_ast, SymbolTable* symbols, const char* c_name);
+
+  // Prints C-style dependencies to be used in a build system
+  void printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs, const char* c_name,
+                    const char* outfile);
 };

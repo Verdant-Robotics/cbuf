@@ -3,13 +3,15 @@ cmake_minimum_required(VERSION 3.13.0)
 project(cbuf)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
 
 include(FetchDependency)
+include(AddTest)
 
 fetch_dependency(vlog "https://git.martian.ag/open-source/vlog.git" "master")
-
 # optional hjson package, if found it exposes more functionality on the CBufParser class
-find_package(hjson)
+fetch_dependency(hjson "https://git.martian.ag/open-source/hjson.git" "master")
+fetch_dependency(gtest "https://git.martian.ag/open-source/gtest.git" "master")
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
   add_compile_options(-march=x86-64-v3)
@@ -18,11 +20,27 @@ else()
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} \
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+  #  GCC specific flags
+  set(CMAKE_CXX_FLAGS
+          "${CMAKE_CXX_FLAGS} \
+    -pedantic \
+    -Werror \
+    -Wall \
+    -Wextra \
+    -Wno-sign-conversion \
+    -Wno-sign-compare \
+    -Wno-format-zero-length \
+    -Wno-stringop-truncation \
+    -Wno-unused-parameter \
+    -Wno-maybe-uninitialized \
+    ")
+else()
+  set(CMAKE_CXX_FLAGS
+          "${CMAKE_CXX_FLAGS} \
     -Werror \
     -Wall \
     -Wextra \
@@ -36,9 +54,9 @@ set(CMAKE_CXX_FLAGS
     -Wno-double-promotion \
     -Wno-gnu-zero-variadic-macro-arguments")
 
-# TODO(jhurliman): Fix these warnings
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} \
+  # TODO(jhurliman): Fix these warnings
+  set(CMAKE_CXX_FLAGS
+          "${CMAKE_CXX_FLAGS} \
     -Wno-unused-parameter \
     -Wno-weak-vtables \
     -Wno-old-style-cast \
@@ -65,25 +83,32 @@ set(CMAKE_CXX_FLAGS
     -Wno-unreachable-code-return \
     -Wno-zero-as-null-pointer-constant \
     -Wno-deprecated-declarations")
+endif()
 
 set(CBUF_PARSE_SRCS
     src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp src/Parser.cpp src/Allocator.cpp
     src/StringBuffer.cpp src/SymbolTable.cpp src/TextType.cpp src/Token.cpp src/CBufParser.cpp src/Interp.cpp
     src/StdStringBuffer.cpp)
 
-set(CBUF_HDRS include/cbuf_preamble.h include/vstring.h include/CBufParser.h)
-
 set(CBUF_SRCS src/cbuf.cpp)
 
-add_library(cbuf_parse STATIC ${CBUF_PARSE_SRCS} ${CBUF_HDRS})
+add_library(cbuf_parse STATIC ${CBUF_PARSE_SRCS})
 target_include_directories(cbuf_parse PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER_EQUAL "14.0.0")
+  # on new compiler version, we need to disable warning
+  target_compile_options(cbuf_parse PRIVATE -Wno-unused-but-set-variable)
+endif()
 
 # Add a shared version of cbuf_parse for those programs needing position independent code
 add_library(cbuf_parse_dynamic SHARED ${CBUF_PARSE_SRCS} ${CBUF_HDRS})
 target_include_directories(cbuf_parse_dynamic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 install(TARGETS cbuf_parse_dynamic DESTINATION lib)
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER_EQUAL "14.0.0")
+  # on new compiler version, we need to disable warning
+  target_compile_options(cbuf_parse_dynamic PRIVATE -Wno-unused-but-set-variable)
+endif()
 
-if(hjson_FOUND)
+if(TARGET hjson)
   target_compile_definitions(cbuf_parse PUBLIC HJSON_PRESENT)
   target_link_libraries(cbuf_parse PUBLIC hjson)
   target_compile_definitions(cbuf_parse_dynamic PUBLIC HJSON_PRESENT)
@@ -101,6 +126,10 @@ if(NOT TARGET cbuf_lib)
   target_include_directories(cbuf_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 endif()
 
+# Internal cbuf headers for extensions
+add_library(cbuf_internal INTERFACE)
+target_include_directories(cbuf_internal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 option(ENABLE_CBUF_TESTS "Enable Tests" OFF)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
@@ -115,3 +144,5 @@ endif()
 
 add_subdirectory(ulog)
 add_subdirectory(test)
+
+add_subdirectory(pycbuf)

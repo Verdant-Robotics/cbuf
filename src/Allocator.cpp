@@ -51,7 +51,7 @@ PoolAllocator::~PoolAllocator() {
   }
 }
 
-void PoolAllocator::free(void* p) {}
+void PoolAllocator::free(void* p) { (void)p; }
 
 void* PoolAllocator::alloc(size_t size) {
   if (size > block_size) {

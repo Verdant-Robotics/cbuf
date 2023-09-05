@@ -12,16 +12,24 @@
 #include "ringbuffer.h"
 #include "vlog.h"
 
+// Ulogger is a singleton class to log to a file, using cbuf serialization.
+// Example usage:
+//   ULogger::getULogger()->setLogPath(path);
+//   ULogger::getULogger()->serialize(img1);
+//   ULogger::getULogger()->serialize(img2);
+//   ULogger::endLogging();
 class ULogger {
   ULogger()
       : quit_thread(false) {}
   ~ULogger() = default;
 
-  static constexpr uint64_t SPLIT_FILE_SIZE = 1024 * 1024 * 1024;  // 1GB
+  static constexpr uint64_t SPLIT_FILE_SIZE = 200 * 1024 * 1024;  // 200MB
 
   RingBuffer<1024 * 1024 * 100> ringbuffer;
   std::thread* loggerThread = nullptr;
   std::function<void(const std::string&)> file_close_callback_;
+  std::function<void(const std::string&)> file_open_callback_;
+  std::function<void(const void*, size_t)> file_write_callback_;
 
   // this is the folder where all the log files go to
   std::string outputdir;
@@ -37,7 +45,8 @@ class ULogger {
   bool quit_thread;
   bool logging_enabled = true;
 
-  void processPacket(void* data, int size, const char* metadata, const char* type_name);
+  void processPacket(void* data, int size, const char* metadata, const char* type_name,
+                     const uint64_t topic_name_hash);
 
   void fillUlogFilename();
   bool openFile();
@@ -62,11 +71,25 @@ public:
   bool getLoggingEnabled() const { return logging_enabled; }
   void setLoggingEnabled(bool enable) { logging_enabled = enable; }
   void setFileCloseCallback(std::function<void(const std::string&)> cb) { file_close_callback_ = cb; }
+  // Set the write callback but return the current (if existent) ulog filename
+  void setFileWriteCallback(std::function<void(const void*, size_t)> cb, std::string& file_path,
+                            size_t& offset);
+  auto getFileWriteCallback() { return file_write_callback_; }
+  void setFileOpenCallback(std::function<void(const std::string&)> cb) { file_open_callback_ = cb; }
+  void resetFileCallbacks();
+
+  // gets a topic variant if it exists or adds one and then gets the variant if it does not exist
+  int getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t& topic_name_hash);
+
+  /// Serialize to disk when we only have the bytes of the message, this is mainly used
+  /// during replay
+  bool serialize_bytes(const uint8_t* msg_bytes, size_t message_size, const char* type_name,
+                       const char* metadata, const uint64_t topic_name_hash);
 
   /// This function will serialize to a buffer and then queue for the thread to
   /// write to disk
   template <class cbuf_struct>
-  bool serialize(cbuf_struct* member) {
+  bool serialize(cbuf_struct* member, const uint64_t topic_name_hash = 0) {
     if (quit_thread) return false;
 
     if (!logging_enabled) return true;
@@ -79,8 +102,10 @@ public:
     }
     // Always set the size, dynamic cbufs usually do not have it set
     member->preamble.setSize(stsize);
+    /* member->preamble.setVariant(1); */
 
-    uint64_t buffer_handle = ringbuffer.alloc(stsize, member->cbuf_string, member->TYPE_STRING);
+    uint64_t buffer_handle =
+        ringbuffer.alloc(stsize, member->cbuf_string, member->TYPE_STRING, topic_name_hash);
     if (member->preamble.magic != CBUF_MAGIC) {
       // Some packets skip default initialization, ensure it here
       member->preamble.magic = CBUF_MAGIC;
@@ -122,7 +147,7 @@ public:
   }
 
   template <class cbuf_struct>
-  bool serialize(cbuf_struct& member) {
-    return serialize(&member);
+  bool serialize(cbuf_struct& member, const uint64_t topic_name_hash = 0) {
+    return serialize(&member, topic_name_hash);
   }
 };

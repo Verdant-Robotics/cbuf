@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include "AstPrinter.h"
+#include "FileData.h"
+#include "ast.h"
 
 // clang-format off
 static const char* ElementTypeToStrC[] = {
@@ -45,6 +47,41 @@ static bool enum_type(const ast_element* elem, const SymbolTable* sym) {
   return false;
 }
 
+static void print_ast_value(const ast_value* val, StdStringBuffer* buffer) {
+  switch (val->valtype) {
+    case VALTYPE_INTEGER:
+      buffer->print_no("%zd", val->int_val);
+      break;
+    case VALTYPE_FLOAT:
+      buffer->print_no("%f", val->float_val);
+      break;
+    case VALTYPE_BOOL:
+      buffer->print_no("%s", val->bool_val ? "true" : "false");
+      break;
+    case VALTYPE_STRING:
+      buffer->print_no("\"%s\"", val->str_val);
+      break;
+    case VALTYPE_IDENTIFIER:
+      buffer->print_no("%s", val->str_val);
+      break;
+    case VALTYPE_ARRAY: {
+      buffer->print_no("{");
+      auto arr_val = static_cast<const ast_array_value*>(val);
+      for (auto v = arr_val->values.begin(); v != arr_val->values.end(); ++v) {
+        print_ast_value(*v, buffer);
+        if (std::next(v) != arr_val->values.end()) {
+          buffer->print_no(", ");
+        }
+      }
+      buffer->print_no("}");
+      break;
+    }
+    default:
+      printf("[FATAL] [CPrinter::print_ast_value] Unknown value type %d\n", val->valtype);
+      exit(1);
+  }
+}
+
 const char* get_str_for_elem_type(ElementType t) { return ElementTypeToStrC[t]; }
 
 void CPrinter::print(ast_const* cst) {
@@ -60,7 +97,10 @@ void CPrinter::print(ast_namespace* sp) {
   buffer->increase_ident();
 
   for (auto* cst : sp->consts) {
-    print(cst);
+    // effectively skip consts imported from other files
+    if (cst->file && !strcmp(cst->file->getFilename(), main_file->getFilename())) {
+      print(cst);
+    }
   }
   buffer->print("\n");
 
@@ -512,7 +552,7 @@ void CPrinter::print_net(ast_struct* st) {
         buffer->increase_ident();
         buffer->print("uint32_t %s_length = *reinterpret_cast<uint32_t *>(data);\n", elem->name);
         buffer->print("data += sizeof(uint32_t);\n");
-        buffer->print("this->%s[i] = std::string(data, %s_length);\n", elem->name, elem->name);
+        buffer->print("this->%s[i].assign(data, %s_length);\n", elem->name, elem->name);
         buffer->print("data += %s_length;\n", elem->name);
         buffer->decrease_ident();
         buffer->print("}\n");
@@ -532,7 +572,7 @@ void CPrinter::print_net(ast_struct* st) {
     } else if (elem->type == TYPE_STRING) {
       buffer->print("uint32_t %s_length = *reinterpret_cast<uint32_t *>(data);\n", elem->name);
       buffer->print("data += sizeof(uint32_t);\n");
-      buffer->print("this->%s = std::string(data, %s_length);\n", elem->name, elem->name);
+      buffer->print("this->%s.assign(data, %s_length);\n", elem->name, elem->name);
       buffer->print("data += %s_length;\n", elem->name);
     } else if (elem->type == TYPE_CUSTOM) {
       buffer->print("this->%s = *reinterpret_cast<%s *>(data);\n", elem->name, custom_type);
@@ -551,14 +591,7 @@ void CPrinter::print_net(ast_struct* st) {
 void CPrinter::print(ast_struct* st) {
   if (st->file != main_file) return;
 
-  if (st->simple) {
-    buffer->print("#ifndef ATTR_PACKED\n");
-    buffer->print("#define ATTR_PACKED __attribute__ ((__packed__))\n");
-    buffer->print("#endif\n\n");
-    buffer->print("struct ATTR_PACKED %s {\n", st->name);
-  } else {
-    buffer->print("struct %s {\n", st->name);
-  }
+  buffer->print("struct ATTR_PACKED %s {\n", st->name);
   buffer->increase_ident();
 
   if (st->naked) {
@@ -578,6 +611,8 @@ void CPrinter::print(ast_struct* st) {
     buffer->decrease_ident();
   }
 
+  buffer->print("bool operator==(const %s&) const = default;\n", st->name);
+
   for (auto* elem : st->elements) {
     print(elem);
   }
@@ -585,13 +620,14 @@ void CPrinter::print(ast_struct* st) {
   if (!st->naked) {
     buffer->print("/// This is here to ensure hash is always available, just in case.\n");
     buffer->print("static const uint64_t TYPE_HASH = 0x%" PRIX64 ";\n", st->hash_value);
-    buffer->print("static uint64_t hash() { return TYPE_HASH; }\n");
+    buffer->print("static constexpr uint64_t hash() { return TYPE_HASH; }\n");
     buffer->print("static constexpr const char* TYPE_STRING = \"");
     if (strcmp(st->space->name, GLOBAL_NAMESPACE)) buffer->print_no("%s::", st->space->name);
     buffer->print_no("%s\";\n", st->name);
   }
-  buffer->print("static bool is_simple() { return %s; }\n", (st->simple ? "true" : "false"));
-  buffer->print("static bool supports_compact() { return %s; }\n", (st->has_compact ? "true" : "false"));
+  buffer->print("static constexpr bool is_simple() { return %s; }\n", (st->simple ? "true" : "false"));
+  buffer->print("static constexpr bool supports_compact() { return %s; }\n",
+                (st->has_compact ? "true" : "false"));
   buffer->print("\n");
 
   buffer->print("void Init()\n");
@@ -739,7 +775,11 @@ void CPrinter::print(ast_enum* en) {
   buffer->print("{\n");
   buffer->increase_ident();
   for (auto el : en->elements) {
-    buffer->print("%s,\n", el);
+    if (el.item_assigned) {
+      buffer->print("%s = %zd,\n", el.item_name, el.item_value);
+    } else {
+      buffer->print("%s,\n", el.item_name);
+    }
   }
   buffer->decrease_ident();
   buffer->print("};\n\n");
@@ -781,7 +821,26 @@ void CPrinter::printInit(ast_element* elem) {
     buffer->print("%s", elem->name);
 
     if (elem->init_value != nullptr) {
-      buffer->print_no(" = %s;\n", elem->init_value);
+      auto& val = elem->init_value;
+      switch (val->valtype) {
+        case VALTYPE_INTEGER:
+          buffer->print_no(" = %zd;\n", val->int_val);
+          break;
+        case VALTYPE_FLOAT:
+          buffer->print_no(" = %f;\n", val->float_val);
+          break;
+        case VALTYPE_BOOL:
+          buffer->print_no(" = %s;\n", val->bool_val ? "true" : "false");
+          break;
+        case VALTYPE_STRING:
+          buffer->print_no(" = \"%s\";\n", val->str_val);
+          break;
+        case VALTYPE_IDENTIFIER:
+          buffer->print_no(" = %s;\n", val->str_val);
+          break;
+        default:
+          break;
+      }
     } else if (struct_type(elem, sym)) {
       buffer->print_no(".Init();\n");
     } else if (enum_type(elem, sym)) {
@@ -830,7 +889,9 @@ void CPrinter::print(ast_element* elem) {
     ar = ar->next;
   }
   if (elem->init_value != nullptr) {
-    buffer->print_no(" = %s", elem->init_value);
+    auto& val = elem->init_value;
+    buffer->print(" = ");
+    print_ast_value(val, buffer);
   }
   buffer->print(";\n");
   buffer->set_ident(old_ident);
@@ -870,7 +931,10 @@ void CPrinter::print(StdStringBuffer* buf, ast_global* top_ast, SymbolTable* sym
   buffer->print("\n");
 
   for (auto* cst : top_ast->consts) {
-    print(cst);
+    // effectively skip consts imported from other files
+    if (cst->file && !strcmp(cst->file->getFilename(), top_ast->main_file->getFilename())) {
+      print(cst);
+    }
   }
   buffer->print("\n");
 
@@ -946,11 +1010,13 @@ void CPrinter::printLoader(ast_element* elem) {
       buffer->print("{\n");
       buffer->increase_ident();
       buffer->print("int %s_int;\n", elem->name);
-      buffer->print("get_value_int(jelem, %s_int);\n", elem->name);
+      buffer->print("if (get_value_int(jelem, %s_int)) {\n", elem->name);
+      buffer->increase_ident();
       buffer->print("obj.%s[%s_index] = ", elem->name, elem->name);
       if (strcmp(elem->enclosing_struct->space->name, GLOBAL_NAMESPACE))
         buffer->print_no("%s::", elem->enclosing_struct->space->name);
       buffer->print_no("%s(%s_int);\n", elem->custom_name, elem->name);
+      buffer->print("}\n");  // close if
       buffer->decrease_ident();
       buffer->print("}\n");  // close local block
       buffer->decrease_ident();
@@ -986,8 +1052,11 @@ void CPrinter::printLoader(ast_element* elem) {
         buffer->print("{\n");
         buffer->increase_ident();
         buffer->print("std::string tmp;\n");
-        buffer->print("get_value_string(jelem, tmp);\n");
+        buffer->print("if (get_value_string(jelem, tmp)) {\n");
+        buffer->increase_ident();
         buffer->print("elem = tmp;\n");
+        buffer->decrease_ident();
+        buffer->print("}\n");
         buffer->decrease_ident();
         buffer->print("}\n");
         break;
@@ -1008,11 +1077,14 @@ void CPrinter::printLoader(ast_element* elem) {
     buffer->print("{\n");
     buffer->increase_ident();
     buffer->print("int %s_int;\n", elem->name);
-    buffer->print("get_member_int(json, \"%s\", %s_int);\n", elem->name, elem->name);
+    buffer->print("if (get_member_int(json, \"%s\", %s_int)) {\n", elem->name, elem->name);
+    buffer->increase_ident();
     buffer->print("obj.%s = ", elem->name);
     if (strcmp(elem->enclosing_struct->space->name, GLOBAL_NAMESPACE))
       buffer->print_no("%s::", elem->enclosing_struct->space->name);
     buffer->print_no("%s(%s_int);\n", elem->custom_name, elem->name);
+    buffer->decrease_ident();
+    buffer->print("}\n");
     buffer->decrease_ident();
     buffer->print("}\n");
   } else {
@@ -1042,13 +1114,16 @@ void CPrinter::printLoader(ast_element* elem) {
         buffer->print("{\n");
         buffer->increase_ident();
         buffer->print("std::string tmp;\n");
-        buffer->print("get_member_string(json, \"%s\", tmp);\n", elem->name);
+        buffer->print("if (get_member_string(json, \"%s\", tmp)) {\n", elem->name);
+        buffer->increase_ident();
         buffer->print("obj.%s = tmp;\n", elem->name);
+        buffer->decrease_ident();
+        buffer->print("}\n");
         buffer->decrease_ident();
         buffer->print("}\n");
         break;
       case TYPE_BOOL:
-        buffer->print("get_member_bool(json, \"%s\", obj.%s);\n", elem->name, elem->name);
+        buffer->print("get_member_bool_relaxed(json, \"%s\", obj.%s);\n", elem->name, elem->name);
         break;
       case TYPE_CUSTOM:
         buffer->print("// NOT SURE WHAT TO PUT HERE for %s\n", elem->name);
@@ -1072,6 +1147,9 @@ void CPrinter::printLoader(ast_struct* st) {
   buffer->print("#if !defined(_JSON_IMPLEMENTATION_%s_)\n", st->name);
   buffer->print("#define _JSON_IMPLEMENTATION_%s_\n", st->name);
 
+  if (strcmp(st->space->name, GLOBAL_NAMESPACE)) buffer->print_no("namespace %s {\n", st->space->name);
+  buffer->print_no("struct %s;\n", st->name);
+  if (strcmp(st->space->name, GLOBAL_NAMESPACE)) buffer->print("}\n");
   buffer->print("template<>\n");
   buffer->print("inline void loadFromJson(const Hjson::Value& json, ");
   if (strcmp(st->space->name, GLOBAL_NAMESPACE)) buffer->print_no("%s::", st->space->name);
@@ -1150,4 +1228,31 @@ void CPrinter::printLoader(StdStringBuffer* buf, ast_global* top_ast, SymbolTabl
   buffer = nullptr;
   sym = nullptr;
   main_file = nullptr;
+}
+
+void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs,
+                            const char* c_name, const char* outfile) {
+  buffer = buf;
+
+  buffer->print("%s : %s ", outfile, c_name);
+  for (int i = 0; i < top_ast->imported_files.size(); i++) {
+    char* p = canonicalize_file_name(top_ast->imported_files[i]);
+    if (p == nullptr) {
+      // we could not find an imported file, search on include paths
+      char ipbuf[512];
+      for (int ip = 0; ip < incs.size(); ip++) {
+        snprintf(ipbuf, sizeof(ipbuf), "%s/%s", incs[ip], top_ast->imported_files[i]);
+        p = canonicalize_file_name(ipbuf);
+        if (p != nullptr) break;
+      }
+      if (p == nullptr) {
+        fprintf(stderr, "Include file %s could not be found!\n", top_ast->imported_files[i]);
+        exit(-1);
+      }
+    }
+    buffer->print("\\\n  %s ", p);
+    free(p);
+    p = nullptr;
+  }
+  buffer->print("\n");
 }

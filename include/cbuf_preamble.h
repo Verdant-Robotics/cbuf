@@ -21,6 +21,10 @@ struct ATTR_PACKED cbuf_preamble {
   uint64_t hash = 0;
   double packet_timest;
 
+  bool operator==(const cbuf_preamble& that) const {
+    return magic == that.magic && size_ == that.size_ && hash == that.hash;
+  }
+
   bool _hasVariant() const { return (size_ & 0x80000000) == 0x80000000; }
 
   uint32_t size() const {
