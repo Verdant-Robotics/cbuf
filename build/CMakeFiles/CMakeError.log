@@ -1,0 +1,64 @@
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/lawrence/verdant/dev/third_party/cbuf/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/local/bin/ninja cmTC_6b882 && [1/2] Building C object CMakeFiles/cmTC_6b882.dir/src.c.o
+[2/2] Linking C executable cmTC_6b882
+FAILED: cmTC_6b882 
+: && /usr/bin/cc   CMakeFiles/cmTC_6b882.dir/src.c.o -o cmTC_6b882   && :
+ld: error: undefined symbol: pthread_create
+>>> referenced by src.c
+>>>               CMakeFiles/cmTC_6b882.dir/src.c.o:(main)
+
+ld: error: undefined symbol: pthread_detach
+>>> referenced by src.c
+>>>               CMakeFiles/cmTC_6b882.dir/src.c.o:(main)
+
+ld: error: undefined symbol: pthread_cancel
+>>> referenced by src.c
+>>>               CMakeFiles/cmTC_6b882.dir/src.c.o:(main)
+
+ld: error: undefined symbol: pthread_join
+>>> referenced by src.c
+>>>               CMakeFiles/cmTC_6b882.dir/src.c.o:(main)
+
+ld: error: undefined symbol: pthread_atfork
+>>> referenced by src.c
+>>>               CMakeFiles/cmTC_6b882.dir/src.c.o:(main)
+clang-12: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/lawrence/verdant/dev/third_party/cbuf/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/local/bin/ninja cmTC_6104c && [1/2] Building C object CMakeFiles/cmTC_6104c.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_6104c
+FAILED: cmTC_6104c 
+: && /usr/bin/cc -DCHECK_FUNCTION_EXISTS=pthread_create  CMakeFiles/cmTC_6104c.dir/CheckFunctionExists.c.o -o cmTC_6104c  -lpthreads && :
+ld: error: unable to find library -lpthreads
+clang-12: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+

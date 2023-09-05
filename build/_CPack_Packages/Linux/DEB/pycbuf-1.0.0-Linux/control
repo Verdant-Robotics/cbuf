@@ -1,0 +1,10 @@
+Architecture: amd64
+Depends: libc6 (>= 2.17), libdwarf1 (>= 20160507+git20160523.9086738), libelf1 (>= 0.142), libgcc-s1 (>= 4.2), libstdc++6 (>= 11)
+Description: Python interface to cbuf files
+Maintainer: Lawrence Ibarria <lawrence@verdantrobotics.com>
+Package: pycbuf
+Priority: optional
+Section: devel
+Version: 1.0.0
+Installed-Size: 6807
+

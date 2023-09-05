@@ -1,0 +1,6 @@
+/usr/lib/libcbuf_parse_dynamic.so
+/usr/lib/libvlog.so
+/usr/lib/libuloglib.so
+/usr/lib/libcbuf_stream.so
+/usr/lib/pycbuf.so
+/usr/lib/python3/dist-packages/pycbuf.so

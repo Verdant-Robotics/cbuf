@@ -1,0 +1,96 @@
+Start testing: Mar 22 23:01 PDT
+----------------------------------------------------------
+1/3 Testing: test_main
+1/3 Test: test_main
+Command: "/home/lawrence/verdant/dev/third_party/cbuf/build/test/test_main"
+Directory: /home/lawrence/verdant/dev/third_party/cbuf/build/test
+"test_main" start time: Mar 22 23:01 PDT
+Output:
+----------------------------------------------------------
+CBuf test completed successfully, no errors
+Test encode/decode completed successfully
+<end of output>
+Test time =   0.55 sec
+----------------------------------------------------------
+Test Passed.
+"test_main" end time: Mar 22 23:01 PDT
+"test_main" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/3 Testing: test_ulogger
+2/3 Test: test_ulogger
+Command: "/home/lawrence/verdant/dev/third_party/cbuf/build/test/test_ulogger"
+Directory: /home/lawrence/verdant/dev/third_party/cbuf/build/test
+"test_ulogger" start time: Mar 22 23:01 PDT
+Output:
+----------------------------------------------------------
+[==========] Running 2 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from RecordOneMessage
+[ RUN      ] RecordOneMessage.ULogger
+[0mINFO[0m [1679551307.326726] Ulogger openFile /home/lawrence/verdant/dev/third_party/cbuf/build/test/test_ulogger.tablet_vdev.2023.03.22.23_01_47.cb
+[       OK ] RecordOneMessage.ULogger (128 ms)
+[----------] 1 test from RecordOneMessage (128 ms total)
+
+[----------] 1 test from RecordManyMessages
+[ RUN      ] RecordManyMessages.ULogger
+[0mINFO[0m [1679551307.453386] Ulogger openFile /home/lawrence/verdant/dev/third_party/cbuf/build/test/test_ulogger.tablet_vdev.2023.03.22.23_01_47.cb
+[       OK ] RecordManyMessages.ULogger (126 ms)
+[----------] 1 test from RecordManyMessages (126 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 2 test suites ran. (254 ms total)
+[  PASSED  ] 2 tests.
+<end of output>
+Test time =   0.26 sec
+----------------------------------------------------------
+Test Passed.
+"test_ulogger" end time: Mar 22 23:01 PDT
+"test_ulogger" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/3 Testing: test_parsing
+3/3 Test: test_parsing
+Command: "/home/lawrence/verdant/dev/third_party/cbuf/build/test/test_parsing"
+Directory: /home/lawrence/verdant/dev/third_party/cbuf/build/test
+"test_parsing" start time: Mar 22 23:01 PDT
+Output:
+----------------------------------------------------------
+[==========] Running 6 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 2 tests from HJsonParsing
+[ RUN      ] HJsonParsing.Simple
+[       OK ] HJsonParsing.Simple (2 ms)
+[ RUN      ] HJsonParsing.Complex
+CBuf test completed successfully, no errors
+[       OK ] HJsonParsing.Complex (6 ms)
+[----------] 2 tests from HJsonParsing (9 ms total)
+
+[----------] 2 tests from JStrParsing
+[ RUN      ] JStrParsing.Simple
+[       OK ] JStrParsing.Simple (6 ms)
+[ RUN      ] JStrParsing.Complex
+CBuf test completed successfully, no errors
+[       OK ] JStrParsing.Complex (19 ms)
+[----------] 2 tests from JStrParsing (25 ms total)
+
+[----------] 2 tests from CParsing
+[ RUN      ] CParsing.Simple
+[       OK ] CParsing.Simple (0 ms)
+[ RUN      ] CParsing.Complex
+CBuf test completed successfully, no errors
+[       OK ] CParsing.Complex (0 ms)
+[----------] 2 tests from CParsing (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 3 test suites ran. (35 ms total)
+[  PASSED  ] 6 tests.
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"test_parsing" end time: Mar 22 23:01 PDT
+"test_parsing" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 22 23:01 PDT
