@@ -3,14 +3,17 @@ cmake_minimum_required(VERSION 3.13.0)
 project(cbuf)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
+if (NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
+endif()
 
 include(FetchDependency)
+include(FetchContent)
 include(AddTest)
 
 fetch_dependency(vlog "https://github.com/Verdant-Robotics/vlog.git" "main")
 # optional hjson package, if found it exposes more functionality on the CBufParser class
-fetch_dependency(hjson "https://git.martian.ag/open-source/hjson-cpp.git" "master")
+fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
 fetch_dependency(gtest "https://github.com/google/googletest.git" "8a6feabf04bec8fb125e0df0ad1195c42350725f")
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
