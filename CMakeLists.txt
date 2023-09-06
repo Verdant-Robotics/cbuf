@@ -10,7 +10,7 @@ include(AddTest)
 
 fetch_dependency(vlog "https://git.martian.ag/open-source/vlog.git" "master")
 # optional hjson package, if found it exposes more functionality on the CBufParser class
-fetch_dependency(hjson "https://git.martian.ag/open-source/hjson.git" "master")
+fetch_dependency(hjson "https://git.martian.ag/open-source/hjson-cpp.git" "master")
 fetch_dependency(gtest "https://git.martian.ag/open-source/gtest.git" "master")
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
