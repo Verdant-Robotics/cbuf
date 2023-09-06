@@ -8,10 +8,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
 include(FetchDependency)
 include(AddTest)
 
-fetch_dependency(vlog "https://git.martian.ag/open-source/vlog.git" "master")
+fetch_dependency(vlog "https://github.com/Verdant-Robotics/vlog.git" "main")
 # optional hjson package, if found it exposes more functionality on the CBufParser class
 fetch_dependency(hjson "https://git.martian.ag/open-source/hjson-cpp.git" "master")
-fetch_dependency(gtest "https://git.martian.ag/open-source/gtest.git" "master")
+fetch_dependency(gtest "https://github.com/google/googletest.git" "8a6feabf04bec8fb125e0df0ad1195c42350725f")
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
   add_compile_options(-march=x86-64-v3)

@@ -25,7 +25,7 @@ macro(fetch_dependency target url tag)
               PATHS ${PROJECT_SOURCE_DIR}/../${target} ${PROJECT_SOURCE_DIR}/../../${target}
                     ${PROJECT_SOURCE_DIR}/../../../${target} ${PROJECT_SOURCE_DIR}/../../../../${target})
     if(NOT ${target}_project)
-      FetchContent_Declare(${target} GIT_REPOSITORY ${url})
+      FetchContent_Declare(${target} GIT_REPOSITORY ${url} GIT_TAG ${tag} GIT_SHALLOW TRUE)
       FetchContent_GetProperties(${target})
       if(NOT ${target}_POPULATED)
         execute_process(COMMAND ${CMAKE_COMMAND} -E echo_append "-- Downloading ${target} ")
