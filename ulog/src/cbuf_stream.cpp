@@ -31,7 +31,11 @@ double cbuf_ostream::now() const { return ::now(); }
 
 ssize_t cbuf_ostream::file_offset() const {
   if (stream < 0) return -1;
+#if defined(__linux__)
   return lseek64(stream, 0, SEEK_CUR);
+#else
+  return lseek(stream, 0, SEEK_CUR);
+#endif
 }
 
 int cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const char* msg_name) {
