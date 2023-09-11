@@ -599,14 +599,12 @@ bool process_element_conversion(const ast_element* elem, const u8*& bin_buffer, 
   u32 dst_array_size = 0;
   bool check_dst_array = false;
   u8* dst_elem_buf = dst_buf;
-  u32 dst_elem_size = dst_size;
 
   if (dst_elem->array_suffix) {
     if (dst_elem->is_compact_array) {
       // For compact arrays, write the num
       *(u32*)dst_elem_buf = array_size;
       dst_elem_buf += sizeof(array_size);
-      dst_elem_size -= sizeof(array_size);
     }
     if (!dst_elem->is_dynamic_array) {
       check_dst_array = true;
@@ -688,7 +686,6 @@ bool process_element_conversion(const ast_element* elem, const u8*& bin_buffer, 
       }
     }
     dst_elem_buf += dst_elem->typesize;
-    dst_elem_size -= dst_elem->typesize;
   }
 
   return true;
@@ -790,18 +787,15 @@ bool convert_element_string(const ast_element* elem, const u8*& bin_buffer, size
   u32 dst_array_size = 0;
   bool check_dst_array = false;
   u8* dst_elem_buf = dst_buf;
-  u32 dst_elem_size = dst_size;
 
   if (elem->array_suffix) {
     if (dst_elem->is_compact_array) {
       // For compact arrays, write the num
       *(u32*)dst_elem_buf = array_size;
       dst_elem_buf += sizeof(array_size);
-      dst_elem_size -= sizeof(array_size);
     }
     if (!dst_elem->is_dynamic_array) {
       check_dst_array = true;
-      dst_array_size = dst_elem->array_suffix->size;
     }
   }
 
@@ -844,7 +838,6 @@ bool convert_element_string(const ast_element* elem, const u8*& bin_buffer, size
         return false;
     }
     dst_elem_buf += dst_elem->typesize;
-    dst_elem_size -= dst_elem->typesize;
   }
 
   return true;
@@ -918,18 +911,15 @@ bool convert_element_short_string(const ast_element* elem, const u8*& bin_buffer
   u32 dst_array_size = 0;
   bool check_dst_array = false;
   u8* dst_elem_buf = dst_buf;
-  u32 dst_elem_size = dst_size;
 
   if (elem->array_suffix) {
     if (dst_elem->is_compact_array) {
       // For compact arrays, write the num
       *(u32*)dst_elem_buf = array_size;
       dst_elem_buf += sizeof(array_size);
-      dst_elem_size -= sizeof(array_size);
     }
     if (!dst_elem->is_dynamic_array) {
       check_dst_array = true;
-      dst_array_size = dst_elem->array_suffix->size;
     }
   }
 
@@ -968,7 +958,6 @@ bool convert_element_short_string(const ast_element* elem, const u8*& bin_buffer
         return false;
     }
     dst_elem_buf += dst_elem->typesize;
-    dst_elem_size -= dst_elem->typesize;
   }
 
   return true;
