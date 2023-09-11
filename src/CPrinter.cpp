@@ -94,6 +94,16 @@ void CPrinter::print(ast_const* cst) {
 }
 
 void CPrinter::print(ast_namespace* sp) {
+  // Emit GCC and clang pragmas to disable -Wpacked
+  buffer->print("#if defined(__GNUC__)\n");
+  buffer->print("#pragma GCC diagnostic push\n");
+  buffer->print("#pragma GCC diagnostic ignored \"-Wpacked\"\n");
+  buffer->print("#pragma GCC diagnostic ignored \"-Wunaligned-access\"\n");
+  buffer->print("#elif defined(__clang__)\n");
+  buffer->print("#pragma clang diagnostic push\n");
+  buffer->print("#pragma clang diagnostic ignored \"-Wpacked\"\n");
+  buffer->print("#endif\n\n");
+
   buffer->print("namespace %s {\n", sp->name);
   buffer->increase_ident();
 
@@ -115,6 +125,13 @@ void CPrinter::print(ast_namespace* sp) {
 
   buffer->decrease_ident();
   buffer->print("};\n\n");
+
+  // Emit GCC and clang pragmas to re-enable -Wpacked
+  buffer->print("#if defined(__GNUC__)\n");
+  buffer->print("#pragma GCC diagnostic pop\n");
+  buffer->print("#elif defined(__clang__)\n");
+  buffer->print("#pragma clang diagnostic pop\n");
+  buffer->print("#endif\n\n");
 }
 
 void CPrinter::helper_print_array_suffix(ast_element* elem) {

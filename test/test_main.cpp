@@ -29,7 +29,7 @@ void test_serialize() {
   messages::image img, img2;
   bool ret;
   set_data(img, 13);
-  const char* test_filename = std::tmpnam("test_file.cb");
+  const char* test_filename = std::tmpnam(nullptr);
 
   remove(test_filename);
 
