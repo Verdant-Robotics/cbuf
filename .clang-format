@@ -1,0 +1,16 @@
+---
+# for details: http://releases.llvm.org/9.0.0/tools/clang/docs/ClangFormatStyleOptions.html
+Language: Cpp
+Standard: Cpp11
+BasedOnStyle: Google
+
+AccessModifierOffset: -2
+BreakConstructorInitializers: BeforeComma
+ColumnLimit: 110
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+DerivePointerAlignment: false
+FixNamespaceComments: true
+PointerAlignment: Left
+ReflowComments: true
+SortIncludes: true
+...
