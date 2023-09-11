@@ -7,6 +7,7 @@
 #include "AstPrinter.h"
 #include "FileData.h"
 #include "ast.h"
+#include "fileutils.h"
 
 // clang-format off
 static const char* ElementTypeToStrC[] = {
@@ -1241,23 +1242,21 @@ void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<con
 
   buffer->print("%s : %s ", outfile, c_name);
   for (int i = 0; i < top_ast->imported_files.size(); i++) {
-    char* p = canonicalize_file_name(top_ast->imported_files[i]);
-    if (p == nullptr) {
+    std::string p = getCanonicalPath(top_ast->imported_files[i]);
+    if (p.empty()) {
       // we could not find an imported file, search on include paths
       char ipbuf[512];
       for (int ip = 0; ip < incs.size(); ip++) {
         snprintf(ipbuf, sizeof(ipbuf), "%s/%s", incs[ip], top_ast->imported_files[i]);
-        p = canonicalize_file_name(ipbuf);
-        if (p != nullptr) break;
+        p = getCanonicalPath(ipbuf);
+        if (!p.empty()) break;
       }
-      if (p == nullptr) {
+      if (p.empty()) {
         fprintf(stderr, "Include file %s could not be found!\n", top_ast->imported_files[i]);
         exit(-1);
       }
     }
-    buffer->print("\\\n  %s ", p);
-    free(p);
-    p = nullptr;
+    buffer->print("\\\n  %s ", p.c_str());
   }
   buffer->print("\n");
 }

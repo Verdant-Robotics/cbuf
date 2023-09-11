@@ -14,7 +14,6 @@ include(AddTest)
 fetch_dependency(vlog "https://github.com/Verdant-Robotics/vlog.git" "main")
 # optional hjson package, if found it exposes more functionality on the CBufParser class
 fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
-fetch_dependency(gtest "https://github.com/google/googletest.git" "8a6feabf04bec8fb125e0df0ad1195c42350725f")
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
   add_compile_options(-march=x86-64-v3)
@@ -89,9 +88,21 @@ else()
 endif()
 
 set(CBUF_PARSE_SRCS
-    src/AstPrinter.cpp src/CPrinter.cpp src/FileData.cpp src/Lexer.cpp src/Parser.cpp src/Allocator.cpp
-    src/StringBuffer.cpp src/SymbolTable.cpp src/TextType.cpp src/Token.cpp src/CBufParser.cpp src/Interp.cpp
-    src/StdStringBuffer.cpp)
+    src/Allocator.cpp
+    src/AstPrinter.cpp
+    src/CBufParser.cpp
+    src/CPrinter.cpp
+    src/FileData.cpp
+    src/fileutils.cpp
+    src/Interp.cpp
+    src/Lexer.cpp
+    src/Parser.cpp
+    src/StdStringBuffer.cpp
+    src/StringBuffer.cpp
+    src/SymbolTable.cpp
+    src/TextType.cpp
+    src/Token.cpp
+)
 
 set(CBUF_SRCS src/cbuf.cpp)
 
@@ -121,7 +132,6 @@ endif()
 add_executable(cbuf ${CBUF_SRCS})
 target_include_directories(cbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(cbuf PRIVATE cbuf_parse)
-target_link_libraries(cbuf PRIVATE stdc++fs)
 
 if(NOT TARGET cbuf_lib)
   add_library(cbuf_lib INTERFACE)

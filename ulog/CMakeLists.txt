@@ -14,7 +14,7 @@ target_link_libraries(cbuf_stream PUBLIC meta_cbuf cbuf_lib cbuf_parse_dynamic p
 # Class using templates to have callbacks as we read messages
 add_library(uloglib SHARED src/ulogger.cpp src/cbuf_readerbase.cpp src/cbuf_reader.cpp)
 target_include_directories(uloglib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(uloglib PUBLIC cbuf_stream vlog stdc++fs)
+target_link_libraries(uloglib PUBLIC cbuf_stream vlog)
 
 add_library(ringbufferlib INTERFACE)
 target_include_directories(ringbufferlib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
