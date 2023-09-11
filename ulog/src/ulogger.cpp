@@ -87,7 +87,11 @@ extern char* __progname;
 static void name_thread() {
   char thread_name[16] = {};
   snprintf(thread_name, sizeof(thread_name), "ulog_%s", __progname);
+#if defined(__APPLE__)
+  pthread_setname_np(thread_name);
+#else
   pthread_setname_np(pthread_self(), thread_name);
+#endif
 }
 
 double ULogger::time_now() {
