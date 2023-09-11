@@ -34,7 +34,7 @@ macro(fetch_dependency target url tag)
         add_subdirectory(${${target}_SOURCE_DIR} ${${target}_BINARY_DIR})
       endif()
       message(
-        "${BoldRed}-- ${CMAKE_CURRENT_LIST_FILE} Using ${target} downloaded from git, saved at: ${${target}_SOURCE_DIR}${ColourReset}"
+        "${BoldGreen}-- ${CMAKE_CURRENT_LIST_FILE} Using ${target} downloaded from git, saved at: ${${target}_SOURCE_DIR}${ColourReset}"
       )
     else()
       get_filename_component(dir ${${target}_project} DIRECTORY)
