@@ -50,7 +50,7 @@ static bool enum_type(const ast_element* elem, const SymbolTable* sym) {
 static void print_ast_value(const ast_value* val, StdStringBuffer* buffer) {
   switch (val->valtype) {
     case VALTYPE_INTEGER:
-      buffer->print_no("%zd", val->int_val);
+      buffer->print_no("%zd", ssize_t(val->int_val));
       break;
     case VALTYPE_FLOAT:
       buffer->print_no("%f", val->float_val);
@@ -127,7 +127,7 @@ void CPrinter::helper_print_array_suffix(ast_element* elem) {
                   elem->name);
   } else {
     // plain simple static array
-    buffer->print_no(" %lu;\n", elem->array_suffix->size);
+    buffer->print_no(" %llu;\n", elem->array_suffix->size);
   }
 }
 
@@ -173,7 +173,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("ret_size += sizeof(uint32_t); // Encode the length of %s in the var num_%s\n",
                           elem->name, elem->name);
           } else {
-            buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = %llu;\n", elem->name, elem->array_suffix->size);
           }
           // No need to encode elements on the static array case, we know them already
           buffer->print("for(int %s_index=0; %s_index < int(num_%s); %s_index++) {\n", elem->name, elem->name,
@@ -295,7 +295,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("*reinterpret_cast<uint32_t *>(data) = num_%s;\n", elem->name);
             buffer->print("data += sizeof(uint32_t);\n");
           } else {
-            buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = %llu;\n", elem->name, elem->array_suffix->size);
           }  // No need to encode the number of elements on the static array case, we know them already
           buffer->print("for(size_t %s_index=0; %s_index < num_%s; %s_index++) {\n", elem->name, elem->name,
                         elem->name, elem->name);
@@ -478,7 +478,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("num_%s = *reinterpret_cast<uint32_t *>(data);\n", elem->name);
             buffer->print("data += sizeof(uint32_t);\n");
           } else {  // No need to decode the number of elements on the static array case, we know them already
-            buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = %llu;\n", elem->name, elem->array_suffix->size);
           }
           buffer->print("for(uint32_t i=0; i<num_%s; i++) {\n", elem->name);
           buffer->increase_ident();
@@ -513,7 +513,7 @@ void CPrinter::print_net(ast_struct* st) {
         } else {
           buffer->print("memcpy(this->%s, data, %d*sizeof(int32_t));\n", elem->name,
                         (int)elem->array_suffix->size);
-          buffer->print("data += %lu*sizeof(int32_t);\n", elem->array_suffix->size);
+          buffer->print("data += %llu*sizeof(int32_t);\n", elem->array_suffix->size);
         }
       } else if (elem->type == TYPE_CUSTOM) {
         if (elem->is_dynamic_array) {
@@ -535,7 +535,7 @@ void CPrinter::print_net(ast_struct* st) {
         } else {  // @warning: what happens here when the encode net size is not the same on each elem?
           buffer->print("memcpy(this->%s, data, %d*this->%s[0].encode_net_size());\n", elem->name,
                         (int)elem->array_suffix->size, elem->name);
-          buffer->print("data += %lu*this->%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
+          buffer->print("data += %llu*this->%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
         }
       } else {
         assert(elem->type == TYPE_STRING);
@@ -776,7 +776,7 @@ void CPrinter::print(ast_enum* en) {
   buffer->increase_ident();
   for (auto el : en->elements) {
     if (el.item_assigned) {
-      buffer->print("%s = %zd,\n", el.item_name, el.item_value);
+      buffer->print("%s = %zd,\n", el.item_name, ssize_t(el.item_value));
     } else {
       buffer->print("%s,\n", el.item_name);
     }
@@ -797,7 +797,7 @@ void CPrinter::printInit(ast_element* elem) {
     buffer->print("%s.clear();\n", elem->name);
   } else if (ar && (ar->size > 0)) {
     // static arrays (compact and not too)
-    buffer->print("for(int %s_index = 0; %s_index < %zu; %s_index++) {\n", elem->name, elem->name, ar->size,
+    buffer->print("for(int %s_index = 0; %s_index < %zu; %s_index++) {\n", elem->name, elem->name, size_t(ar->size),
                   elem->name);
     buffer->increase_ident();
     buffer->print("%s[%s_index]", elem->name, elem->name);
@@ -824,7 +824,7 @@ void CPrinter::printInit(ast_element* elem) {
       auto& val = elem->init_value;
       switch (val->valtype) {
         case VALTYPE_INTEGER:
-          buffer->print_no(" = %zd;\n", val->int_val);
+          buffer->print_no(" = %zd;\n", ssize_t(val->int_val));
           break;
         case VALTYPE_FLOAT:
           buffer->print_no(" = %f;\n", val->float_val);
@@ -885,7 +885,7 @@ void CPrinter::print(ast_element* elem) {
   }
   buffer->print("%s", elem->name);
   while (ar != nullptr) {
-    if (ar->size != 0) buffer->print("[%ld]", ar->size);
+    if (ar->size != 0) buffer->print("[%llu]", ar->size);
     ar = ar->next;
   }
   if (elem->init_value != nullptr) {
@@ -990,7 +990,7 @@ void CPrinter::printLoader(ast_element* elem) {
                     elem->name, elem->name);
     } else {
       buffer->print("if (!json[\"%s\"].defined()) break;\n", elem->name);
-      buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+      buffer->print("uint32_t num_%s = %llu;\n", elem->name, elem->array_suffix->size);
       buffer->print("for( int %s_index=0; %s_index < num_%s; %s_index++) {\n", elem->name, elem->name,
                     elem->name, elem->name);
     }

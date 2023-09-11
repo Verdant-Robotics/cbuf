@@ -114,7 +114,7 @@ public:
 
     cbuf_preamble* pre = &member->preamble;
     VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-    VLOG_ASSERT(pre->hash == member->hash(), "Expected hash to be %lX, but it is %lX", member->hash(),
+    VLOG_ASSERT(pre->hash == member->hash(), "Expected hash to be %llX, but it is %llX", member->hash(),
                 pre->hash);
     VLOG_ASSERT(pre->size() != 0);
 
@@ -138,7 +138,7 @@ public:
     // Check again
     pre = (cbuf_preamble*)ringbuffer_mem;
     VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-    VLOG_ASSERT(pre->hash == member->hash(), "Expected hash to be %lX, but it is %lX", member->hash(),
+    VLOG_ASSERT(pre->hash == member->hash(), "Expected hash to be %llX, but it is %llX", member->hash(),
                 pre->hash);
     VLOG_ASSERT(pre->size() != 0);
 
