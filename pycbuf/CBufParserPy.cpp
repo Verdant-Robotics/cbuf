@@ -503,7 +503,7 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   PyType_Spec* spec = (PyType_Spec*)state->pool->alloc(sizeof(PyType_Spec));
   int str_size = strlen(st->name) + 8 + 5;
   char* type_name = (char*)state->pool->alloc(str_size);
-  snprintf(type_name, str_size, "pycbuf.%s_" U64_FORMAT_HEX, st->name, (hash & 0x0FFFFULL));
+  snprintf(type_name, str_size, "pycbuf.%s_" U64_FORMAT_HEX, st->name, uint64_t((hash & 0x0FFFFULL)));
   spec->name = type_name;
   spec->itemsize = 0;
   spec->flags = Py_TPFLAGS_DEFAULT;
