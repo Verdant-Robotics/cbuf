@@ -611,6 +611,16 @@ static struct PyMethodDef pycbufreader_methods[] = {
 #pragma GCC diagnostic pop
 #endif
 
+// -Werror=missing-field-initializers
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static PyTypeObject PyCBufReader_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name      = "pycbuf.CBufReader",
@@ -629,6 +639,12 @@ static PyTypeObject PyCBufReader_Type = {
     .tp_new       = pycbuf_cbufreader___new__,
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
+
 static struct PyMemberDef pycbufpreamble_members[] = {
     {"cbuf_magic", T_UINT, offsetof(pycbuf_preamble, magic), READONLY, NULL},
     {"cbuf_size", T_UINT, offsetof(pycbuf_preamble, size_), READONLY, NULL},
@@ -644,6 +660,14 @@ static struct PyMethodDef pycbufpreamble_methods[] = {
     {NULL, NULL, 0, NULL}  /* sentinel */
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static PyTypeObject PyCBufPreamble_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name      = "pycbuf.CBufPreamble",
@@ -653,6 +677,12 @@ static PyTypeObject PyCBufPreamble_Type = {
     .tp_members   = pycbufpreamble_members,
     .tp_new       = PyType_GenericNew,
 };
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
 
 // clang-format on
 
