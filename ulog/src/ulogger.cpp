@@ -1,6 +1,5 @@
 #include "ulogger.h"
 
-#include <linux/limits.h>
 #include <memory.h>
 #include <pthread.h>
 #include <sys/stat.h>
@@ -10,6 +9,10 @@
 #include <mutex>
 #include <streambuf>
 #include <unordered_map>
+
+#if defined(__linux__)
+#include <linux/limits.h>
+#endif
 
 #include "vlog.h"
 
