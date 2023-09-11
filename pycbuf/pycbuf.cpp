@@ -580,6 +580,9 @@ static struct PyMemberDef pycbufreader_members[] = {
     {NULL, 0, 0, 0, NULL}  /* Sentinel */
 };
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type"
+
 static struct PyMethodDef pycbufreader_methods[] = {
     {"__enter__",           (PyCFunction)                          pycbuf_cbufreader___enter___impl,         METH_NOARGS,                  pycbuf_cbufreader___enter_____doc__   },
     {"__exit__",            (PyCFunction)                          pycbuf_cbufreader___exit__,               METH_VARARGS | METH_KEYWORDS, pycbuf_cbufreader___exit_____doc__    },
@@ -596,6 +599,8 @@ static struct PyMethodDef pycbufreader_methods[] = {
     //
     {NULL,                  NULL,                                                                         0,                            NULL                                },  /* sentinel */
 };
+
+#pragma clang diagnostic pop
 
 static PyTypeObject PyCBufReader_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
