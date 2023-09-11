@@ -5,17 +5,14 @@
 
 #define CBUF_MAGIC uint32_t(('V' << 24) | ('D' << 16) | ('N' << 8) | 'T')
 
-#ifndef ATTR_PACKED
-#define ATTR_PACKED __attribute__((__packed__))
-#endif
-
 ///
 /// Cbuf preamble stores 2 values on the size. On the top
 /// 4 bits, a 'variant' number is stored to differentiate
 /// messages of the same type.
 /// The lower 28 bits are the size of a packet
 ///
-struct ATTR_PACKED cbuf_preamble {
+#pragma pack(push, 1)
+struct cbuf_preamble {
   uint32_t magic = 0;
   uint32_t size_ = 0;
   uint64_t hash = 0;
@@ -67,6 +64,7 @@ struct ATTR_PACKED cbuf_preamble {
     }
   }
 };
+#pragma pack(pop)
 
 typedef void (*cbuf_metadata_fn)(const char* msg_meta, uint64_t hash, const char* msg_name, void* ctx);
 

@@ -48,6 +48,7 @@ else()
     -Wextra \
     -Weverything \
     -Werror=return-type \
+    -Wno-unknown-warning-option \
     -Wno-c++98-compat \
     -Wno-c++98-compat-pedantic \
     -Wno-ctad-maybe-unsupported \
