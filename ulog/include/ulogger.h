@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <climits>
 #include <functional>
 #include <mutex>
 #include <queue>
@@ -11,6 +12,16 @@
 #include "cbuf_stream.h"
 #include "ringbuffer.h"
 #include "vlog.h"
+
+#if UINT64_MAX == ULLONG_MAX
+#define U64_FORMAT "%llu"
+#define U64_FORMAT_HEX "%llX"
+#elif UINT64_MAX == ULONG_MAX
+#define U64_FORMAT "%lu"
+#define U64_FORMAT_HEX "%lX"
+#else
+#error "uint64_t is not supported"
+#endif
 
 // Ulogger is a singleton class to log to a file, using cbuf serialization.
 // Example usage:
@@ -114,7 +125,8 @@ public:
 
     cbuf_preamble* pre = &member->preamble;
     VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-    VLOG_ASSERT(pre->hash == member->hash(), "Expected hash to be %llX, but it is %llX", member->hash(),
+    VLOG_ASSERT(pre->hash == member->hash(),
+                "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
                 pre->hash);
     VLOG_ASSERT(pre->size() != 0);
 
@@ -138,7 +150,8 @@ public:
     // Check again
     pre = (cbuf_preamble*)ringbuffer_mem;
     VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-    VLOG_ASSERT(pre->hash == member->hash(), "Expected hash to be %llX, but it is %llX", member->hash(),
+    VLOG_ASSERT(pre->hash == member->hash(),
+                "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
                 pre->hash);
     VLOG_ASSERT(pre->size() != 0);
 

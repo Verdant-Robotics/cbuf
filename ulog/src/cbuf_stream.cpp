@@ -336,7 +336,7 @@ bool cbuf_istream::open_file(const char* fname) {
   filesize = st.st_size;
   int flags = MAP_PRIVATE;
 #if defined(__linux__)
-    flags |= MAP_POPULATE;
+  flags |= MAP_POPULATE;
 #endif
   memmap_ptr = (unsigned char*)mmap(nullptr, filesize, PROT_READ, flags, stream, 0);
   if (memmap_ptr == MAP_FAILED) {

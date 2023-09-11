@@ -1,5 +1,6 @@
 #pragma once
 
+#include <climits>
 #include <inttypes.h>
 #include <stdint.h>
 
@@ -11,6 +12,16 @@
 #elif defined(__APPLE__)
 #define PLATFORM_MACOS
 #define PLATFORM_POSIX
+#endif
+
+#if UINT64_MAX == ULLONG_MAX
+#define U64_FORMAT "%llu"
+#define U64_FORMAT_HEX "%llX"
+#elif UINT64_MAX == ULONG_MAX
+#define U64_FORMAT "%lu"
+#define U64_FORMAT_HEX "%lX"
+#else
+#error "uint64_t is not supported"
 #endif
 
 typedef signed char s8;

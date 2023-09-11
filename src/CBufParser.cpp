@@ -1085,7 +1085,7 @@ bool compute_hash(ast_struct* st, SymbolTable* symtable, Interp* interp) {
   buf.print("%s \n", st->name);
   for (auto* elem : st->elements) {
     if (elem->array_suffix) {
-      buf.print("[%llu] ", elem->array_suffix->size);
+      buf.print("[" U64_FORMAT "] ", elem->array_suffix->size);
     }
     if (elem->type == TYPE_CUSTOM) {
       auto* enm = symtable->find_enum(elem);

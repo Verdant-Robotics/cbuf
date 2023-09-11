@@ -228,7 +228,7 @@ static bool compute_hash(ast_struct* st, SymbolTable* symtable) {
   buf.print("%s \n", st->name);
   for (auto* elem : st->elements) {
     if (elem->array_suffix) {
-      buf.print("[%llu] ", elem->array_suffix->size);
+      buf.print("[" U64_FORMAT "] ", elem->array_suffix->size);
     }
     if (elem->type == TYPE_CUSTOM) {
       auto* enm = symtable->find_enum(elem);
@@ -503,7 +503,7 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   PyType_Spec* spec = (PyType_Spec*)state->pool->alloc(sizeof(PyType_Spec));
   int str_size = strlen(st->name) + 8 + 5;
   char* type_name = (char*)state->pool->alloc(str_size);
-  snprintf(type_name, str_size, "pycbuf.%s_%llX", st->name, (hash & 0x0FFFFULL));
+  snprintf(type_name, str_size, "pycbuf.%s_" U64_FORMAT_HEX, st->name, (hash & 0x0FFFFULL));
   spec->name = type_name;
   spec->itemsize = 0;
   spec->flags = Py_TPFLAGS_DEFAULT;
@@ -587,8 +587,9 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
     pypre->variant = pre->variant();
     pypre->type_name = st->name;
     pypre->source_name = source_cbuf_file_;
-    VLOG_ASSERT(pre->hash == hash, "Hash mismatch decoding type %s, expected %llX, got %llX", st->name, hash,
-                pre->hash);
+    VLOG_ASSERT(pre->hash == hash,
+                "Hash mismatch decoding type %s, expected " U64_FORMAT_HEX ", got " U64_FORMAT_HEX, st->name,
+                hash, pre->hash);
     u32 sizeof_preamble = sizeof(cbuf_preamble);  // 8 bytes hash, 4 bytes size
     buffer += sizeof_preamble;
     buf_size -= sizeof_preamble;
@@ -601,8 +602,8 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
     pypre->magic = magic_;
   }
 
-  vlog_debug(VCAT_PYCBUF, "Created object from cbuf type %s, pointer %p, hash: %llX", st->name, (void*)obj,
-             ((pycbuf_preamble*)obj)->hash);
+  vlog_debug(VCAT_PYCBUF, "Created object from cbuf type %s, pointer %p, hash: " U64_FORMAT_HEX, st->name,
+             (void*)obj, ((pycbuf_preamble*)obj)->hash);
   VLOG_ASSERT(state->info_map->contains(((pycbuf_preamble*)obj)->hash));
 
   PyTypeInfo& pyInfo = (*state->info_map)[hash];
