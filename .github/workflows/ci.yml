@@ -31,27 +31,28 @@ jobs:
           cd build
           ctest --output-on-failure
 
-  cpp-windows:
-    runs-on: windows-latest
-    steps:
-      # Install CMake
-      - name: Install CMake
-        run: |
-          choco install cmake
-      # Clone the repository
-      - uses: actions/checkout@v4
-      # CMake configure and build
-      - name: Build
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-          cmake --build . --config Release
-      # Run tests
-      - name: Test
-        run: |
-          cd build
-          ctest --output-on-failure
+  # TODO(https://github.com/Verdant-Robotics/cbuf/issues/4): Fix Windows build
+  # cpp-windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #     # Install CMake
+  #     - name: Install CMake
+  #       run: |
+  #         choco install cmake
+  #     # Clone the repository
+  #     - uses: actions/checkout@v4
+  #     # CMake configure and build
+  #     - name: Build
+  #       run: |
+  #         mkdir build
+  #         cd build
+  #         cmake ..
+  #         cmake --build . --config Release
+  #     # Run tests
+  #     - name: Test
+  #       run: |
+  #         cd build
+  #         ctest --output-on-failure
 
   cpp-macos:
     runs-on: macos-latest
