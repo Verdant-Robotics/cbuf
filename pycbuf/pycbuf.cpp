@@ -354,8 +354,8 @@ static PyObject* pycbuf_cbufreader_get_counts(PyObject* self) {
 
 static int pycbuf_cbufreader___init__(PyObject* self, PyObject* args, PyObject* kwargs) {
   int return_value = -1;
-  static char* keywords[] = {"ulog_path",  "source_filter", "role_filter",  "message_filter",
-                             "early_time", "late_time",     "try_recovery", NULL};
+  static const char* keywords[] = {"ulog_path",  "source_filter", "role_filter",  "message_filter",
+                                   "early_time", "late_time",     "try_recovery", NULL};
   char* ulogpath = nullptr;
   PyObject* rfilters = nullptr;
   PyObject* sfilters = nullptr;
@@ -459,7 +459,7 @@ static PyObject* pycbuf_cbufreader___exit___impl(cbufreader* self, PyObject* exc
 
 static PyObject* pycbuf_cbufreader___exit__(PyObject* self, PyObject* args, PyObject* kwargs) {
   PyObject* return_value = NULL;
-  char* keywords[] = {"exc_type", "exc_value", "traceback", nullptr};
+  const char* keywords[] = {"exc_type", "exc_value", "traceback", nullptr};
 
   PyObject* exc_type = Py_None;
   PyObject* exc_value = Py_None;
@@ -580,8 +580,13 @@ static struct PyMemberDef pycbufreader_members[] = {
     {NULL, 0, 0, 0, NULL}  /* Sentinel */
 };
 
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
 
 static struct PyMethodDef pycbufreader_methods[] = {
     {"__enter__",           (PyCFunction)                          pycbuf_cbufreader___enter___impl,         METH_NOARGS,                  pycbuf_cbufreader___enter_____doc__   },
@@ -600,7 +605,11 @@ static struct PyMethodDef pycbufreader_methods[] = {
     {NULL,                  NULL,                                                                         0,                            NULL                                },  /* sentinel */
 };
 
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
 
 static PyTypeObject PyCBufReader_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
