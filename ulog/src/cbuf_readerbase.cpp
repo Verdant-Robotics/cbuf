@@ -1,15 +1,10 @@
 #include "cbuf_readerbase.h"
 
+#include <filesystem>
+
 #include "vlog.h"
 
-#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
-    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
-#include <filesystem>
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 // returns true if time t is within our range
 bool CBufReaderBase::is_valid_early(double t) const noexcept {

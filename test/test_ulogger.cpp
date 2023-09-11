@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include <chrono>
+#include <filesystem>
 #include <thread>
 
 #include "cbuf_stream.h"
@@ -9,14 +10,7 @@
 #include "inctype.h"
 #include "ulogger.h"
 
-#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
-    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
-#include <filesystem>
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 void set_data(messages::image& img, unsigned seed) {
   srand(seed);

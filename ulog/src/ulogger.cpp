@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <streambuf>
@@ -21,14 +22,7 @@ static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
-#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
-    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
-#include <filesystem>
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 int ULogger::getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t& topic_name_hash) {
   // get the vector for the give message hash
