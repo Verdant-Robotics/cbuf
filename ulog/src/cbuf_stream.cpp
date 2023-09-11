@@ -184,7 +184,7 @@ bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string
     }
   } else {
     if (dictionary.count(hash) == 0) {
-      fprintf(stderr, "processing packet with hash 0x%lX does not have metadata\n", hash);
+      fprintf(stderr, "processing packet with hash 0x%llX does not have metadata\n", hash);
     }
   }
 
