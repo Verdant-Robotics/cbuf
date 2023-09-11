@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cinttypes>
 #include <climits>
 #include <functional>
 #include <mutex>
@@ -11,17 +12,9 @@
 #include "cbuf_preamble.h"
 #include "cbuf_stream.h"
 #include "ringbuffer.h"
-#include "vlog.h"
 
-#if UINT64_MAX == ULLONG_MAX
-#define U64_FORMAT "%llu"
-#define U64_FORMAT_HEX "%llX"
-#elif UINT64_MAX == ULONG_MAX
-#define U64_FORMAT "%lu"
-#define U64_FORMAT_HEX "%lX"
-#else
-#error "uint64_t is not supported"
-#endif
+#define U64_FORMAT "%" PRIu64
+#define U64_FORMAT_HEX "%" PRIX64
 
 // Ulogger is a singleton class to log to a file, using cbuf serialization.
 // Example usage:
@@ -124,11 +117,20 @@ public:
     }
 
     cbuf_preamble* pre = &member->preamble;
-    VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-    VLOG_ASSERT(pre->hash == member->hash(),
-                "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
-                pre->hash);
-    VLOG_ASSERT(pre->size() != 0);
+    if (pre->magic != CBUF_MAGIC) {
+      // VLOG_ASSERT(false, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
+      return false;
+    }
+    if (pre->hash != member->hash()) {
+      // VLOG_ASSERT(false,
+      //             "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
+      //             pre->hash);
+      return false;
+    }
+    if (pre->size() == 0) {
+      // VLOG_ASSERT(false, "Expected size to be non-zero");
+      return false;
+    }
 
     member->preamble.packet_timest = time_now();
     char* ringbuffer_mem = (char*)ringbuffer.handleToAddress(buffer_handle);
@@ -136,24 +138,33 @@ public:
     if (member->supports_compact()) {
       if (!member->encode_net(ringbuffer_mem, stsize)) {
         ringbuffer.populate(buffer_handle);
-        VLOG_ASSERT(false, "Encode net failed for message : %s ", member->TYPE_STRING);
+        // VLOG_ASSERT(false, "Encode net failed for message : %s ", member->TYPE_STRING);
         return false;
       }
     } else {
       if (!member->encode(ringbuffer_mem, stsize)) {
         ringbuffer.populate(buffer_handle);
-        VLOG_ASSERT(false, "Encode failed for message : %s ", member->TYPE_STRING);
+        // VLOG_ASSERT(false, "Encode failed for message : %s ", member->TYPE_STRING);
         return false;
       }
     }
 
     // Check again
     pre = (cbuf_preamble*)ringbuffer_mem;
-    VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-    VLOG_ASSERT(pre->hash == member->hash(),
-                "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
-                pre->hash);
-    VLOG_ASSERT(pre->size() != 0);
+    if (pre->magic != CBUF_MAGIC) {
+      // VLOG_ASSERT(false, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
+      return false;
+    }
+    if (pre->hash != member->hash()) {
+      // VLOG_ASSERT(false,
+      //             "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
+      //             pre->hash);
+      return false;
+    }
+    if (pre->size() == 0) {
+      // VLOG_ASSERT(false, "Expected size to be non-zero");
+      return false;
+    }
 
     ringbuffer.populate(buffer_handle);
     return true;

@@ -593,9 +593,6 @@ void CPrinter::print_net(ast_struct* st) {
 void CPrinter::print(ast_struct* st) {
   if (st->file != main_file) return;
 
-  buffer->print("#pragma GCC diagnostic push\n");
-  buffer->print("#pragma GCC diagnostic ignored \"-Wunaligned-access\"\n");
-
   buffer->print("struct ATTR_PACKED %s {\n", st->name);
   buffer->increase_ident();
 
@@ -771,8 +768,6 @@ void CPrinter::print(ast_struct* st) {
                 buf.get_buffer());
   buffer->decrease_ident();
   buffer->print("};\n\n");
-
-  buffer->print("#pragma GCC diagnostic pop\n");
 }
 
 void CPrinter::print(ast_enum* en) {

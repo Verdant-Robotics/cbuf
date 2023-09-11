@@ -59,6 +59,7 @@ else()
   # TODO(jhurliman): Fix these warnings
   set(CMAKE_CXX_FLAGS
           "${CMAKE_CXX_FLAGS} \
+    -Wno-unaligned-access \
     -Wno-unused-parameter \
     -Wno-weak-vtables \
     -Wno-old-style-cast \
