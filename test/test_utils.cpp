@@ -2,8 +2,8 @@
 
 void ensure(bool check, const char* str) {
   if (check) return;
-  printf("Test failure, reason: %s\n", str);
-  assert(false && str);
+  fprintf(stderr, "Test failure, reason: %s\n", str);
+  assert(false);
 }
 
 void set_data(messages::image& img, unsigned seed) {
