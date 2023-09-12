@@ -8,4 +8,5 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
+name = "pycbuf"
 requires-python = ">=3.9"
