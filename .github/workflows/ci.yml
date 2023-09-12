@@ -76,9 +76,13 @@ jobs:
           cd build
           ctest --output-on-failure
 
-  python-linux:
-    name: Build Python wheels on Linux
-    runs-on: ubuntu-latest
+  build_wheels:
+    name: Build Python wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
     steps:
       - uses: actions/checkout@v4
 
