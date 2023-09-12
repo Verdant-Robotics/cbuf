@@ -609,7 +609,8 @@ void CPrinter::print_net(ast_struct* st) {
 void CPrinter::print(ast_struct* st) {
   if (st->file != main_file) return;
 
-  buffer->print("struct ATTR_PACKED %s {\n", st->name);
+  buffer->print("#pragma pack(push, 1)\n");
+  buffer->print("struct %s {\n", st->name);
   buffer->increase_ident();
 
   if (st->naked) {
@@ -784,6 +785,7 @@ void CPrinter::print(ast_struct* st) {
                 buf.get_buffer());
   buffer->decrease_ident();
   buffer->print("};\n");
+  buffer->print("#pragma pack(pop)\n\n");
 }
 
 void CPrinter::print(ast_enum* en) {
