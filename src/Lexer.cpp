@@ -183,7 +183,7 @@ const char* TokenTypeToCOP(TOKEN_TYPE type) {
       return st.str;
     }
   }
-  assert("We should never be here, using this function wrong");
+  assert(false && "We should never be here, using this function wrong");
   return nullptr;
 }
 
