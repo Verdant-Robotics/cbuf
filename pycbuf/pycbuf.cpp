@@ -8,7 +8,6 @@
 #include <Python.h>
 #include <cbuf_reader_python.h>
 #include <structmember.h>
-#include <vlog.h>
 
 #include "pycbuf.h"
 
@@ -742,20 +741,23 @@ static PyObject* pycbuf_cbufreader_create_impl(PyObject* self, PyObject* args, P
 
 PyCBuf_State* pycbufmodule_getstate(PyObject* module) {
   void* state = PyModule_GetState(module);
-  VLOG_ASSERT(state != NULL);
+  if (state == nullptr) {
+    PyErr_SetString(PyExc_RuntimeError, "pycbuf module state is NULL");
+    return nullptr;
+  }
   return (PyCBuf_State*)state;
 }
 
 static int pycbufmodule_traverse(PyObject* mod, visitproc visit, void* arg) {
   PyCBuf_State* state = pycbufmodule_getstate(mod);
-  if (!state->initialized) return 0;
+  if (!state || !state->initialized) return 0;
   Py_VISIT(state->unsupported_operation);
   return 0;
 }
 
 static int pycbufmodule_clear(PyObject* mod) {
   PyCBuf_State* state = pycbufmodule_getstate(mod);
-  if (!state->initialized) return 0;
+  if (!state || !state->initialized) return 0;
   Py_CLEAR(state->unsupported_operation);
   printf("********** module pycbuf dealloc **********\n");
   return 0;
@@ -803,6 +805,7 @@ PyMODINIT_FUNC PyInit_pycbuf(void) {
   m = PyModule_Create(&PyCBuf_Module);
   if (m == NULL) goto exit;
   state = pycbufmodule_getstate(m);
+  if (!state) goto fail;
   state->initialized = 0;
   state->unsupported_operation = NULL;
   state->pool = new PoolAllocator();

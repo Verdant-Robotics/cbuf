@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <structmember.h>
-#include <vlog.h>
 
 #include <cmath>
 
@@ -64,7 +63,7 @@ bool process_element_py(const ast_element* elem, const u8*& bin_buffer, size_t& 
       buf_size -= sizeof(val);
       PyObject* innerobj = nullptr;
       if (mdef->type == T_BOOL) {
-        VLOG_ASSERT(sizeof(T) == 1);
+        if (sizeof(T) != 1) return false;
         innerobj = PyBool_FromLong((uint8_t)val);
       } else {
         innerobj = BuildPyObjectFromNumber(val);
@@ -294,7 +293,7 @@ static bool computeSizes(ast_struct* st, SymbolTable* symtable) {
           elem->csize = 4;
         } else {
           auto* inner_st = symtable->find_struct(elem);
-          VLOG_ASSERT(inner_st);
+          if (inner_st == nullptr) return false;
           bool bret = computeSizes(inner_st, symtable);
           if (!bret) return false;
           elem->csize = 8;
@@ -342,22 +341,21 @@ static int ElemTypeToPyCType(ast_element* e, SymbolTable* sym) {
         return T_UINT;
       } else {
         auto* inner_st = sym->find_struct(e);
-        VLOG_ASSERT(inner_st);
+        if (inner_st == nullptr) return 0;
         return T_OBJECT;
       }
     }
   }
-  VLOG_ASSERT(false);
   return 0;
 }
 
 static PyObject* DynamicStr(PyObject* obj) {
   PyObject* mod = PyType_GetModule(obj->ob_type);
   PyCBuf_State* state = pycbufmodule_getstate(mod);
-  VLOG_ASSERT(state);
+  if (state == nullptr) return nullptr;
 
   pycbuf_preamble* pre = (pycbuf_preamble*)obj;
-  VLOG_ASSERT(state->info_map->contains(pre->hash));
+  if (!state->info_map->contains(pre->hash)) return nullptr;
   PyTypeInfo& pyinfo = (*state->info_map)[pre->hash];
 
   u8* byte_ptr = (u8*)obj;
@@ -424,7 +422,7 @@ static PyObject* DynamicStr(PyObject* obj) {
         break;
       }
       default:
-        VLOG_ASSERT(false, "Unsupported type: %d", md->type);
+        return nullptr;
     }
   }
   retstr += "}";
@@ -434,13 +432,11 @@ static PyObject* DynamicStr(PyObject* obj) {
 
 static void DynamicDealloc(PyObject* obj) {
   PyCBuf_State* state = (PyCBuf_State*)PyType_GetModuleState(Py_TYPE(obj));
-  VLOG_ASSERT(state);
+  if (state == nullptr) return;
 
   pycbuf_preamble* pre = (pycbuf_preamble*)obj;
-  VLOG_ASSERT(state->info_map->contains(pre->hash));
+  if (!state->info_map->contains(pre->hash)) return;
   PyTypeInfo& pyinfo = (*state->info_map)[pre->hash];
-
-  vlog_fine(VCAT_PYCBUF, "Dealloc of object %p type %s", (void*)obj, pre->type_name);
 
   u8* byte_ptr = (u8*)obj;
   for (PyMemberDef* md = pyinfo.members; md->name != nullptr; md++) {
@@ -457,14 +453,16 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   PyTypeObject* pyType = nullptr;
   if (state->info_map->contains(hash)) {
     pyType = (PyTypeObject*)(*state->info_map)[hash].type;
-    VLOG_ASSERT(pyType != nullptr);
-    VLOG_ASSERT(PyType_Check(pyType) != 0);
+    if (pyType == nullptr) return nullptr;
+    if (PyType_Check(pyType) == 0) return nullptr;
     return pyType;
   }
 
   // We did not have a type, we have to create it
-  VLOG_ASSERT(!state->info_map->contains(hash),
-              "We should not have seen this hash, otherwise there should be a type");
+  if (state->info_map->contains(hash)) {
+    // We should not have seen this hash, otherwise there should be a type
+    return nullptr;
+  }
   PyTypeInfo& pyinfo = (*state->info_map)[hash];
   if (!computeSizes(st, sym)) return nullptr;
   //+1
@@ -516,7 +514,7 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   if (pyType == nullptr) {
     state->info_map->erase(hash);
   } else {
-    VLOG_ASSERT(PyErr_Occurred() == nullptr);
+    if (PyErr_Occurred()) return nullptr;
 
     pyinfo.type = (PyObject*)pyType;
     PyObject* list = PyList_New(st->elements.size());
@@ -525,7 +523,6 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
     }
     Py_INCREF(list);
     pyinfo.list = list;
-    vlog_debug(VCAT_PYCBUF, "Registered type %s on python, spec ptr %p", type_name, (void*)spec);
 
     // The +7 is to skip "pycbuf." prefix
     if (0 == PyModule_AddObject(m, type_name + 7, (PyObject*)pyType)) {
@@ -539,7 +536,6 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
 bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject* m, PyObject*& obj,
                                         PyCBuf_State* state) {
   if (!compute_hash(st, sym)) {
-    VLOG_ASSERT(false);
     obj = nullptr;
     success = false;
     return false;
@@ -547,33 +543,30 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
   // We cannot ensure we have a hash, like for naked structs. Add this code to ensure things and then drop the
   // hash
   if (hash > 0) {
-    VLOG_ASSERT(st->hash_value == hash);
+    if (st->hash_value != hash) {
+      obj = nullptr;
+      success = false;
+      return false;
+    }
   } else {
     hash = st->hash_value;
   }
 
   // Search the module for an object with of the py_type st_name;
   PyTypeObject* pyType = GetPyTypeFromCBuf(hash, st, m, state);
-  if (pyType == nullptr) {
+  if (pyType == nullptr || PyErr_Occurred()) {
     obj = nullptr;
     success = false;
     return false;
   }
 
-  VLOG_ASSERT(PyErr_Occurred() == nullptr);
-
-  vlog_debug(VCAT_PYCBUF, "Got PyType for object %s :  %p", st->name, (void*)pyType);
-
-  //   create a python object of that type (EXTRA: use default values from cbuf)
+  // Create a python object of that type (EXTRA: use default values from cbuf)
   obj = PyObject_CallObject((PyObject*)pyType, nullptr);
   if (obj == nullptr) {
     // This will allow python to create exceptions
     success = false;
     return false;
   }
-
-  VLOG_ASSERT(obj != nullptr, "Could not instantiate python object of type %s", st->name);
-  vlog_debug(VCAT_PYCBUF, "Created object from cbuf type %s, pointer %p", st->name, (void*)obj);
 
   // Fill the object members
   // All structs have a preamble, skip it
@@ -587,9 +580,13 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
     pypre->variant = pre->variant();
     pypre->type_name = st->name;
     pypre->source_name = source_cbuf_file_;
-    VLOG_ASSERT(pre->hash == hash,
-                "Hash mismatch decoding type %s, expected " U64_FORMAT_HEX ", got " U64_FORMAT_HEX, st->name,
-                hash, pre->hash);
+    if (pre->hash != hash) {
+      PyErr_Format(PyExc_ValueError,
+                   "Hash mismatch decoding type `%s`, expected " U64_FORMAT_HEX ", got " U64_FORMAT_HEX,
+                   st->name, hash, pre->hash);
+      success = false;
+      return false;
+    }
     u32 sizeof_preamble = sizeof(cbuf_preamble);  // 8 bytes hash, 4 bytes size
     buffer += sizeof_preamble;
     buf_size -= sizeof_preamble;
@@ -602,9 +599,10 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
     pypre->magic = magic_;
   }
 
-  vlog_debug(VCAT_PYCBUF, "Created object from cbuf type %s, pointer %p, hash: " U64_FORMAT_HEX, st->name,
-             (void*)obj, ((pycbuf_preamble*)obj)->hash);
-  VLOG_ASSERT(state->info_map->contains(((pycbuf_preamble*)obj)->hash));
+  if (!state->info_map->contains(((pycbuf_preamble*)obj)->hash)) {
+    success = false;
+    return false;
+  }
 
   PyTypeInfo& pyInfo = (*state->info_map)[hash];
 
@@ -616,7 +614,7 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
   for (int elem_idx = 0; elem_idx < st->elements.size(); elem_idx++) {
     // Uncomment this assert to catch things while debugging
     // without it, python will issue an exception users can see
-    // VLOG_ASSERT(PyErr_Occurred() == nullptr);
+    // assert(PyErr_Occurred() == nullptr);
     auto& elem = st->elements[elem_idx];
     if (!success) return false;
     switch (elem->type) {
@@ -757,7 +755,11 @@ unsigned int CBufParserPy::FillPyObject(uint64_t hash, const char* st_name, cons
   }
 
   const cbuf_preamble* pre = (const cbuf_preamble*)buffer;
-  VLOG_ASSERT(pre->hash == hash);
+  if (pre->hash != hash) {
+    obj = nullptr;
+    buffer = nullptr;
+    return 0;
+  }
   current_timestamp_ = pre->packet_timest;
   magic_ = pre->magic;
 

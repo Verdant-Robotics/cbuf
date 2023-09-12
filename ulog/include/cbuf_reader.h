@@ -10,7 +10,6 @@
 
 #include "CBufParser.h"
 #include "cbuf_readerbase.h"
-#include "vlog.h"
 
 namespace fs = std::filesystem;
 
@@ -72,7 +71,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
-        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
       (caller->*handler)(msg);
@@ -85,7 +84,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -93,8 +92,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
-                       CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -112,8 +110,7 @@ public:
         return true;
       }
       if (!warned_conversion) {
-        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but conversion is not allowed",
-                   CBufMsg::TYPE_STRING);
+        // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
@@ -159,11 +156,11 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
-        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
-      // assuming the istream has been instantiated
 
+      // Assuming the istream has been instantiated
       (caller->*handler)(msg, fs::path(cis.filename()).filename());
       return true;
     }
@@ -174,7 +171,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -182,8 +179,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
-                       CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -201,8 +197,7 @@ public:
         return true;
       }
       if (!warned_conversion) {
-        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but conversion is not allowed",
-                   CBufMsg::TYPE_STRING);
+        // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
@@ -252,7 +247,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
-        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
       handler(msg);
@@ -265,7 +260,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -273,8 +268,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
-                       CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -291,8 +285,7 @@ public:
         return true;
       }
       if (!warned_conversion) {
-        vlog_error(VCAT_GENERAL, "Version mismatch for message %s but conversion is not allowed",
-                   CBufMsg::TYPE_STRING);
+        // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
@@ -339,7 +332,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
-        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
       // assuming the istream has been instantiated
@@ -353,7 +346,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -361,8 +354,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
-                       CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -380,8 +372,7 @@ public:
         return true;
       }
       if (!warned_conversion) {
-        vlog_error(VCAT_GENERAL, "Version mismatch for message %s but conversion is not allowed",
-                   CBufMsg::TYPE_STRING);
+        // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
@@ -402,17 +393,10 @@ public:
       : CBufReaderBase(options) {}
 
   [[deprecated]] void setRoleFilter(const std::string& filter) {
-    vlog_warning(VCAT_GENERAL,
-                 "This function is depracated. Please update your code. Read this document: "
-                 "https://drive.google.com/file/d/1G6PejUiUGKf_utZxq0UbfUb4kBC-OK3H/view?usp=sharing");
+    error_string_ =
+        "setRoleFilter is deprecated. Please update your code to handle or ignore messages in each handler "
+        "callback";
     source_filters_.push_back(filter);
-  }
-  [[deprecated]] std::string getRoleFilter() const {
-    vlog_warning(VCAT_GENERAL,
-                 "This function is depracated. Please update your code. Read this document: "
-                 "https://drive.google.com/file/d/1G6PejUiUGKf_utZxq0UbfUb4kBC-OK3H/view?usp=sharing");
-    if (source_filters_.empty()) return "";
-    return source_filters_.front();
   }
 
   bool addHandler(const std::string& msg_type, std::shared_ptr<CBufHandlerBase> handler) {
@@ -477,8 +461,10 @@ public:
     // check if the topic name for this message has a namespace
 
     auto msize = next_cis->get_next_size();
-    VLOG_ASSERT(msize != 0 && next_cis->check_next_preamble(),
-                "All corrupted cbuf issues should be handled on computeNextSi");
+    if (msize == 0 || !next_cis->check_next_preamble()) {
+      error_string_ = "All corrupted cbuf issues should be handled on computeNextSi";
+      return false;
+    }
 
     if (use_cis_callback_) {
       cis_callback_(next_cis);
@@ -559,7 +545,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
-        vlog_error(VCAT_GENERAL, "Could not deserialize message of type %s", CBufMsg::TYPE_STRING);
+        // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
       return true;
@@ -571,7 +557,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -579,8 +565,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
-            vlog_error(VCAT_GENERAL, "metadata could not be parsed for current message %s",
-                       CBufMsg::TYPE_STRING);
+            // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
         }
@@ -597,8 +582,7 @@ public:
         return true;
       }
       if (!warned_conversion) {
-        vlog_error(VCAT_GENERAL, "cbuf version mismatch for message %s but conversion is not allowed",
-                   CBufMsg::TYPE_STRING);
+        // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }

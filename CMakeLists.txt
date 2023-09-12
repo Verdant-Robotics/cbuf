@@ -11,8 +11,7 @@ include(FetchDependency)
 include(FetchContent)
 include(AddTest)
 
-fetch_dependency(vlog "https://github.com/Verdant-Robotics/vlog.git" "main")
-# optional hjson package, if found it exposes more functionality on the CBufParser class
+# Optional hjson package, if found it exposes more functionality on the CBufParser class
 fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

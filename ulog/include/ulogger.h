@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vlog.h>
-
 #include <atomic>
 #include <cinttypes>
 #include <climits>
@@ -36,6 +34,7 @@ class ULogger {
   std::function<void(const std::string&)> file_close_callback_;
   std::function<void(const std::string&)> file_open_callback_;
   std::function<void(const void*, size_t)> file_write_callback_;
+  std::function<void(const std::string&)> error_callback_;
 
   // this is the folder where all the log files go to
   std::string outputdir;
@@ -44,9 +43,8 @@ class ULogger {
   std::string ulogfilename;
 
   uint64_t current_file_size = 0;
-  uint32_t file_check_count = 0;
 
-  bool initialize();
+  void initialize();
   cbuf_ostream cos;
   bool quit_thread;
   bool logging_enabled = true;
@@ -60,6 +58,8 @@ class ULogger {
   void endLoggingThread();
 
   double time_now();
+
+  void reportError(const std::string& error);
 
 public:
   std::string getCurrentUlogPath();
@@ -83,6 +83,7 @@ public:
   auto getFileWriteCallback() { return file_write_callback_; }
   void setFileOpenCallback(std::function<void(const std::string&)> cb) { file_open_callback_ = cb; }
   void resetFileCallbacks();
+  void setErrorCallback(std::function<void(const std::string&)> cb) { error_callback_ = cb; }
 
   // gets a topic variant if it exists or adds one and then gets the variant if it does not exist
   int getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t& topic_name_hash);
@@ -120,16 +121,17 @@ public:
 
     cbuf_preamble* pre = &member->preamble;
     if (pre->magic != CBUF_MAGIC) {
-      VLOG_ASSERT(false, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
+      reportError("Expected magic to be " + std::to_string(CBUF_MAGIC) + ", but it is " +
+                  std::to_string(pre->magic));
       return false;
     }
     if (pre->hash != member->hash()) {
-      VLOG_ASSERT(false, "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
-                  pre->hash);
+      reportError("Expected hash to be " + std::to_string(member->hash()) + ", but it is " +
+                  std::to_string(pre->hash));
       return false;
     }
     if (pre->size() == 0) {
-      VLOG_ASSERT(false, "Expected size to be non-zero");
+      reportError("Expected size to be non-zero");
       return false;
     }
 
@@ -139,13 +141,13 @@ public:
     if (member->supports_compact()) {
       if (!member->encode_net(ringbuffer_mem, stsize)) {
         ringbuffer.populate(buffer_handle);
-        VLOG_ASSERT(false, "Encode net failed for message : %s ", member->TYPE_STRING);
+        reportError("encode_net() failed for message " + std::string(member->TYPE_STRING));
         return false;
       }
     } else {
       if (!member->encode(ringbuffer_mem, stsize)) {
         ringbuffer.populate(buffer_handle);
-        VLOG_ASSERT(false, "Encode failed for message : %s ", member->TYPE_STRING);
+        reportError("encode() failed for message " + std::string(member->TYPE_STRING));
         return false;
       }
     }
@@ -153,16 +155,17 @@ public:
     // Check again
     pre = (cbuf_preamble*)ringbuffer_mem;
     if (pre->magic != CBUF_MAGIC) {
-      VLOG_ASSERT(false, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
+      reportError("Expected magic to be " + std::to_string(CBUF_MAGIC) + ", but it is " +
+                  std::to_string(pre->magic));
       return false;
     }
     if (pre->hash != member->hash()) {
-      VLOG_ASSERT(false, "Expected hash to be " U64_FORMAT_HEX ", but it is " U64_FORMAT_HEX, member->hash(),
-                  pre->hash);
+      reportError("Expected hash to be " + std::to_string(member->hash()) + ", but it is " +
+                  std::to_string(pre->hash));
       return false;
     }
     if (pre->size() == 0) {
-      VLOG_ASSERT(false, "Expected size to be non-zero");
+      reportError("Expected size to be non-zero");
       return false;
     }
 
