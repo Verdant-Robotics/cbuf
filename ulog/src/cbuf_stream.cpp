@@ -1,7 +1,7 @@
 #include "cbuf_stream.h"
-#include "ulogger.h"
 
 #include <assert.h>
+#include <cbuf_preamble.h>
 #include <fcntl.h>
 #include <metadata.h>
 #include <sys/mman.h>
@@ -9,7 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <cbuf_preamble.h>
+#include "ulogger.h"
 
 static double now() {
   struct timespec ts;
@@ -209,7 +209,7 @@ bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string
   }
   auto num = write(stream, cis->ptr, nsize);
   if (num != nsize) {
-    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %ld\n", nsize, num);
+    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %zd\n", nsize, num);
     return false;
   }
   if (file_write_callback_) {
