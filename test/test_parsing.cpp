@@ -12,6 +12,8 @@
 #include "image.h" 
 #include "image_json.h"
 
+#if defined(HJSON_PRESENT)
+
 // Test FillHjson method. 
 TEST(HJsonParsing, Simple) {
   messages::image img1;
@@ -60,6 +62,8 @@ TEST(HJsonParsing, Complex) {
       }
   */
 }
+
+#endif
 
 TEST(JStrParsing, Simple) {
   messages::image img1;

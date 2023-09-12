@@ -1,15 +1,19 @@
 #include "ulogger.h"
 
-#include <linux/limits.h>
 #include <memory.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <streambuf>
 #include <unordered_map>
+
+#if defined(__linux__)
+#include <linux/limits.h>
+#endif
 
 #include "vlog.h"
 
@@ -18,14 +22,7 @@ static std::mutex g_ulogger_mutex;
 static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
-#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
-    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
-#include <filesystem>
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 int ULogger::getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t& topic_name_hash) {
   // get the vector for the give message hash
@@ -84,7 +81,11 @@ extern char* __progname;
 static void name_thread() {
   char thread_name[16] = {};
   snprintf(thread_name, sizeof(thread_name), "ulog_%s", __progname);
+#if defined(__APPLE__)
+  pthread_setname_np(thread_name);
+#else
   pthread_setname_np(pthread_self(), thread_name);
+#endif
 }
 
 double ULogger::time_now() {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cinttypes>
 #include <inttypes.h>
 #include <stdint.h>
 
@@ -13,6 +14,9 @@
 #define PLATFORM_POSIX
 #endif
 
+#define U64_FORMAT "%" PRIu64
+#define U64_FORMAT_HEX "%" PRIX64
+
 typedef signed char s8;
 typedef signed short s16;
 typedef int s32;
@@ -25,10 +29,6 @@ typedef int64_t s64;
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
-#if defined(PLATFORM_WINDOWS)
-typedef unsigned long long u64;
-#else
 typedef uint64_t u64;
-#endif
 typedef float f32;
 typedef double f64;

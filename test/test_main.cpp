@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <cstdio>
+
 #include "assert.h"
 #include "cbuf_stream.h"
 #include "image.h"
@@ -27,7 +29,7 @@ void test_serialize() {
   messages::image img, img2;
   bool ret;
   set_data(img, 13);
-  const char* test_filename = "test_file.ulog";
+  const char* test_filename = std::tmpnam(nullptr);
 
   remove(test_filename);
 

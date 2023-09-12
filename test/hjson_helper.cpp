@@ -4,6 +4,8 @@
 #include <math.h>
 #include <string.h>
 
+#include <cmath>
+
 bool has_member(const Hjson::Value& doc, const std::string& objName) {
   auto v = doc[objName];
   if (!v.defined()) {

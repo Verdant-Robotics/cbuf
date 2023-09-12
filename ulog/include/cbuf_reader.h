@@ -2,6 +2,7 @@
 
 #include <hjson.h>
 
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <set>
@@ -11,14 +12,7 @@
 #include "cbuf_readerbase.h"
 #include "vlog.h"
 
-#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
-    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
-#include <filesystem>
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 template <typename T>
 void loadFromJson(const Hjson::Value& json, T& obj);

@@ -354,8 +354,8 @@ static PyObject* pycbuf_cbufreader_get_counts(PyObject* self) {
 
 static int pycbuf_cbufreader___init__(PyObject* self, PyObject* args, PyObject* kwargs) {
   int return_value = -1;
-  static char* keywords[] = {"ulog_path",  "source_filter", "role_filter",  "message_filter",
-                             "early_time", "late_time",     "try_recovery", NULL};
+  static const char* keywords[] = {"ulog_path",  "source_filter", "role_filter",  "message_filter",
+                                   "early_time", "late_time",     "try_recovery", NULL};
   char* ulogpath = nullptr;
   PyObject* rfilters = nullptr;
   PyObject* sfilters = nullptr;
@@ -459,7 +459,7 @@ static PyObject* pycbuf_cbufreader___exit___impl(cbufreader* self, PyObject* exc
 
 static PyObject* pycbuf_cbufreader___exit__(PyObject* self, PyObject* args, PyObject* kwargs) {
   PyObject* return_value = NULL;
-  char* keywords[] = {"exc_type", "exc_value", "traceback", nullptr};
+  const char* keywords[] = {"exc_type", "exc_value", "traceback", nullptr};
 
   PyObject* exc_type = Py_None;
   PyObject* exc_value = Py_None;
@@ -580,6 +580,14 @@ static struct PyMemberDef pycbufreader_members[] = {
     {NULL, 0, 0, 0, NULL}  /* Sentinel */
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
 static struct PyMethodDef pycbufreader_methods[] = {
     {"__enter__",           (PyCFunction)                          pycbuf_cbufreader___enter___impl,         METH_NOARGS,                  pycbuf_cbufreader___enter_____doc__   },
     {"__exit__",            (PyCFunction)                          pycbuf_cbufreader___exit__,               METH_VARARGS | METH_KEYWORDS, pycbuf_cbufreader___exit_____doc__    },
@@ -597,8 +605,22 @@ static struct PyMethodDef pycbufreader_methods[] = {
     {NULL,                  NULL,                                                                         0,                            NULL                                },  /* sentinel */
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static PyTypeObject PyCBufReader_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base      = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name      = "pycbuf.CBufReader",
     .tp_basicsize = sizeof(cbufreader),
     .tp_dealloc   = (destructor) cbufreader_dealloc,
@@ -615,6 +637,12 @@ static PyTypeObject PyCBufReader_Type = {
     .tp_new       = pycbuf_cbufreader___new__,
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
+
 static struct PyMemberDef pycbufpreamble_members[] = {
     {"cbuf_magic", T_UINT, offsetof(pycbuf_preamble, magic), READONLY, NULL},
     {"cbuf_size", T_UINT, offsetof(pycbuf_preamble, size_), READONLY, NULL},
@@ -630,8 +658,16 @@ static struct PyMethodDef pycbufpreamble_methods[] = {
     {NULL, NULL, 0, NULL}  /* sentinel */
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static PyTypeObject PyCBufPreamble_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base      = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name      = "pycbuf.CBufPreamble",
     .tp_basicsize = sizeof(pycbuf_preamble),
     .tp_flags     = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -639,6 +675,12 @@ static PyTypeObject PyCBufPreamble_Type = {
     .tp_members   = pycbufpreamble_members,
     .tp_new       = PyType_GenericNew,
 };
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
 
 // clang-format on
 
@@ -725,8 +767,16 @@ static struct PyMethodDef pycbufmodule_methods[] = {
     {NULL, NULL, 0, NULL} /* sentinel */
 };
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#endif
+
 static struct PyModuleDef PyCBuf_Module = {
-    PyModuleDef_HEAD_INIT,
+    .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "pycbuf",
     .m_doc = NULL,
     .m_size = sizeof(PyCBuf_State),
@@ -735,6 +785,12 @@ static struct PyModuleDef PyCBuf_Module = {
     .m_clear = pycbufmodule_clear,
     .m_free = (freefunc)pycbufmodule_free,
 };
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
 
 PyObject* pycbuf_getmodule(void) { return PyState_FindModule(&PyCBuf_Module); }
 

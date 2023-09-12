@@ -7,6 +7,7 @@
 #include "Parser.h"
 #include "SymbolTable.h"
 #include "computefuncs.h"
+#include "fileutils.h"
 
 const char* get_str_for_elem_type(ElementType t);
 
@@ -187,17 +188,16 @@ int main(int argc, char** argv) {
   }
 
   if (args.depfile != nullptr) {
-    char *optr = nullptr, *cptr = nullptr;
     StdStringBuffer deptext;
 
     if (args.outfile == nullptr) {
       fprintf(stderr, "Please provide an outfile when using depfiles\n");
       return -1;
     }
-    cptr = canonicalize_file_name(args.srcfile);
-    optr = canonicalize_file_name(args.outfile);
+    const std::string srcFile = getCanonicalPath(args.srcfile);
+    const std::string dstFile = getCanonicalPath(args.outfile);
 
-    printer.printDepfile(&deptext, top_ast, args.incs, cptr, optr);
+    printer.printDepfile(&deptext, top_ast, args.incs, srcFile.c_str(), dstFile.c_str());
     FILE* f = fopen(args.depfile, "w");
     if (f == nullptr) {
       fprintf(stderr, "File %s could not be opened for writing\n", args.depfile);
@@ -205,8 +205,6 @@ int main(int argc, char** argv) {
     }
     fprintf(f, "%s", deptext.get_buffer());
     fclose(f);
-    free(cptr);
-    free(optr);
   }
 
   return 0;

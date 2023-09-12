@@ -7,6 +7,7 @@
 #include "AstPrinter.h"
 #include "FileData.h"
 #include "ast.h"
+#include "fileutils.h"
 
 // clang-format off
 static const char* ElementTypeToStrC[] = {
@@ -50,7 +51,7 @@ static bool enum_type(const ast_element* elem, const SymbolTable* sym) {
 static void print_ast_value(const ast_value* val, StdStringBuffer* buffer) {
   switch (val->valtype) {
     case VALTYPE_INTEGER:
-      buffer->print_no("%zd", val->int_val);
+      buffer->print_no("%zd", ssize_t(val->int_val));
       break;
     case VALTYPE_FLOAT:
       buffer->print_no("%f", val->float_val);
@@ -93,6 +94,15 @@ void CPrinter::print(ast_const* cst) {
 }
 
 void CPrinter::print(ast_namespace* sp) {
+  // Emit GCC and clang pragmas to disable -Wpacked
+  buffer->print("#if defined(__clang__)\n");
+  buffer->print("#pragma clang diagnostic push\n");
+  buffer->print("#pragma clang diagnostic ignored \"-Wunaligned-access\"\n");
+  buffer->print("#elif defined(__GNUC__)\n");
+  buffer->print("#pragma GCC diagnostic push\n");
+  buffer->print("#pragma GCC diagnostic ignored \"-Wpacked\"\n");
+  buffer->print("#endif\n\n");
+
   buffer->print("namespace %s {\n", sp->name);
   buffer->increase_ident();
 
@@ -114,6 +124,13 @@ void CPrinter::print(ast_namespace* sp) {
 
   buffer->decrease_ident();
   buffer->print("};\n\n");
+
+  // Emit GCC and clang pragmas to re-enable -Wpacked
+  buffer->print("#if defined(__clang__)\n");
+  buffer->print("#pragma clang diagnostic pop\n");
+  buffer->print("#elif defined(__GNUC__)\n");
+  buffer->print("#pragma GCC diagnostic pop\n");
+  buffer->print("#endif\n\n");
 }
 
 void CPrinter::helper_print_array_suffix(ast_element* elem) {
@@ -127,7 +144,7 @@ void CPrinter::helper_print_array_suffix(ast_element* elem) {
                   elem->name);
   } else {
     // plain simple static array
-    buffer->print_no(" %lu;\n", elem->array_suffix->size);
+    buffer->print_no(" " U64_FORMAT ";\n", elem->array_suffix->size);
   }
 }
 
@@ -173,7 +190,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("ret_size += sizeof(uint32_t); // Encode the length of %s in the var num_%s\n",
                           elem->name, elem->name);
           } else {
-            buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
           }
           // No need to encode elements on the static array case, we know them already
           buffer->print("for(int %s_index=0; %s_index < int(num_%s); %s_index++) {\n", elem->name, elem->name,
@@ -295,7 +312,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("*reinterpret_cast<uint32_t *>(data) = num_%s;\n", elem->name);
             buffer->print("data += sizeof(uint32_t);\n");
           } else {
-            buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
           }  // No need to encode the number of elements on the static array case, we know them already
           buffer->print("for(size_t %s_index=0; %s_index < num_%s; %s_index++) {\n", elem->name, elem->name,
                         elem->name, elem->name);
@@ -478,7 +495,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("num_%s = *reinterpret_cast<uint32_t *>(data);\n", elem->name);
             buffer->print("data += sizeof(uint32_t);\n");
           } else {  // No need to decode the number of elements on the static array case, we know them already
-            buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
           }
           buffer->print("for(uint32_t i=0; i<num_%s; i++) {\n", elem->name);
           buffer->increase_ident();
@@ -513,7 +530,7 @@ void CPrinter::print_net(ast_struct* st) {
         } else {
           buffer->print("memcpy(this->%s, data, %d*sizeof(int32_t));\n", elem->name,
                         (int)elem->array_suffix->size);
-          buffer->print("data += %lu*sizeof(int32_t);\n", elem->array_suffix->size);
+          buffer->print("data += " U64_FORMAT "*sizeof(int32_t);\n", elem->array_suffix->size);
         }
       } else if (elem->type == TYPE_CUSTOM) {
         if (elem->is_dynamic_array) {
@@ -535,7 +552,8 @@ void CPrinter::print_net(ast_struct* st) {
         } else {  // @warning: what happens here when the encode net size is not the same on each elem?
           buffer->print("memcpy(this->%s, data, %d*this->%s[0].encode_net_size());\n", elem->name,
                         (int)elem->array_suffix->size, elem->name);
-          buffer->print("data += %lu*this->%s[0].encode_net_size();\n", elem->array_suffix->size, elem->name);
+          buffer->print("data += " U64_FORMAT "*this->%s[0].encode_net_size();\n", elem->array_suffix->size,
+                        elem->name);
         }
       } else {
         assert(elem->type == TYPE_STRING);
@@ -591,7 +609,8 @@ void CPrinter::print_net(ast_struct* st) {
 void CPrinter::print(ast_struct* st) {
   if (st->file != main_file) return;
 
-  buffer->print("struct ATTR_PACKED %s {\n", st->name);
+  buffer->print("#pragma pack(push, 1)\n");
+  buffer->print("struct %s {\n", st->name);
   buffer->increase_ident();
 
   if (st->naked) {
@@ -765,7 +784,8 @@ void CPrinter::print(ast_struct* st) {
   buffer->print("static constexpr const char * cbuf_string = R\"CBUF_CODE(\n%s)CBUF_CODE\";\n\n",
                 buf.get_buffer());
   buffer->decrease_ident();
-  buffer->print("};\n\n");
+  buffer->print("};\n");
+  buffer->print("#pragma pack(pop)\n\n");
 }
 
 void CPrinter::print(ast_enum* en) {
@@ -776,7 +796,7 @@ void CPrinter::print(ast_enum* en) {
   buffer->increase_ident();
   for (auto el : en->elements) {
     if (el.item_assigned) {
-      buffer->print("%s = %zd,\n", el.item_name, el.item_value);
+      buffer->print("%s = %zd,\n", el.item_name, ssize_t(el.item_value));
     } else {
       buffer->print("%s,\n", el.item_name);
     }
@@ -797,8 +817,8 @@ void CPrinter::printInit(ast_element* elem) {
     buffer->print("%s.clear();\n", elem->name);
   } else if (ar && (ar->size > 0)) {
     // static arrays (compact and not too)
-    buffer->print("for(int %s_index = 0; %s_index < %zu; %s_index++) {\n", elem->name, elem->name, ar->size,
-                  elem->name);
+    buffer->print("for(int %s_index = 0; %s_index < %zu; %s_index++) {\n", elem->name, elem->name,
+                  size_t(ar->size), elem->name);
     buffer->increase_ident();
     buffer->print("%s[%s_index]", elem->name, elem->name);
     if (struct_type(elem, sym)) {
@@ -824,7 +844,7 @@ void CPrinter::printInit(ast_element* elem) {
       auto& val = elem->init_value;
       switch (val->valtype) {
         case VALTYPE_INTEGER:
-          buffer->print_no(" = %zd;\n", val->int_val);
+          buffer->print_no(" = %zd;\n", ssize_t(val->int_val));
           break;
         case VALTYPE_FLOAT:
           buffer->print_no(" = %f;\n", val->float_val);
@@ -885,7 +905,7 @@ void CPrinter::print(ast_element* elem) {
   }
   buffer->print("%s", elem->name);
   while (ar != nullptr) {
-    if (ar->size != 0) buffer->print("[%ld]", ar->size);
+    if (ar->size != 0) buffer->print("[" U64_FORMAT "]", ar->size);
     ar = ar->next;
   }
   if (elem->init_value != nullptr) {
@@ -990,7 +1010,7 @@ void CPrinter::printLoader(ast_element* elem) {
                     elem->name, elem->name);
     } else {
       buffer->print("if (!json[\"%s\"].defined()) break;\n", elem->name);
-      buffer->print("uint32_t num_%s = %lu;\n", elem->name, elem->array_suffix->size);
+      buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
       buffer->print("for( int %s_index=0; %s_index < num_%s; %s_index++) {\n", elem->name, elem->name,
                     elem->name, elem->name);
     }
@@ -1236,23 +1256,21 @@ void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<con
 
   buffer->print("%s : %s ", outfile, c_name);
   for (int i = 0; i < top_ast->imported_files.size(); i++) {
-    char* p = canonicalize_file_name(top_ast->imported_files[i]);
-    if (p == nullptr) {
+    std::string p = getCanonicalPath(top_ast->imported_files[i]);
+    if (p.empty()) {
       // we could not find an imported file, search on include paths
       char ipbuf[512];
       for (int ip = 0; ip < incs.size(); ip++) {
         snprintf(ipbuf, sizeof(ipbuf), "%s/%s", incs[ip], top_ast->imported_files[i]);
-        p = canonicalize_file_name(ipbuf);
-        if (p != nullptr) break;
+        p = getCanonicalPath(ipbuf);
+        if (!p.empty()) break;
       }
-      if (p == nullptr) {
+      if (p.empty()) {
         fprintf(stderr, "Include file %s could not be found!\n", top_ast->imported_files[i]);
         exit(-1);
       }
     }
-    buffer->print("\\\n  %s ", p);
-    free(p);
-    p = nullptr;
+    buffer->print("\\\n  %s ", p.c_str());
   }
   buffer->print("\n");
 }

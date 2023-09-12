@@ -1,15 +1,11 @@
 #include "cbuf_readerbase.h"
+#include "ulogger.h"
 
-#include "vlog.h"
-
-#if (defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE > 7)) || \
-    (defined(_LIBCPP_VERSION) && (_LIBCPP_VERSION > 10000))
 #include <filesystem>
+
+#include <vlog.h>
+
 namespace fs = std::filesystem;
-#else
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#endif
 
 // returns true if time t is within our range
 bool CBufReaderBase::is_valid_early(double t) const noexcept {
@@ -55,9 +51,8 @@ bool CBufReaderBase::computeNextSi() {
       auto msize = si->cis->get_next_size();
       auto nhash = si->cis->get_next_hash();
       fprintf(stderr,
-              " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: %zX) [FileSize %zu, "
-              "Offset "
-              "%zu], this indicates a corrupted ulog. Trying to recover...\n",
+              " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: " U64_FORMAT_HEX
+              ") [FileSize %zu, Offset %zu], this indicates a corrupted ulog. Trying to recover...\n",
               si->filename.c_str(), msize, nhash, si->cis->get_filesize(), si->cis->get_current_offset());
       auto off = si->cis->get_current_offset();
       if (si->cis->skip_corrupted()) {

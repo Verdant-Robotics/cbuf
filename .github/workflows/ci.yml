@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["releases/**"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  cpp-linux:
+    runs-on: ubuntu-latest
+    steps:
+      # Install CMake
+      - name: Install CMake, libelf, libdwarf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libelf-dev libdwarf-dev
+      # Clone the repository
+      - uses: actions/checkout@v4
+      # CMake configure and build
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+      # Run tests
+      - name: Test
+        run: |
+          cd build
+          ctest --output-on-failure
+
+  # TODO(https://github.com/Verdant-Robotics/cbuf/issues/4): Fix Windows build
+  # cpp-windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #     # Install CMake
+  #     - name: Install CMake
+  #       run: |
+  #         choco install cmake
+  #     # Clone the repository
+  #     - uses: actions/checkout@v4
+  #     # CMake configure and build
+  #     - name: Build
+  #       run: |
+  #         mkdir build
+  #         cd build
+  #         cmake ..
+  #         cmake --build . --config Release
+  #     # Run tests
+  #     - name: Test
+  #       run: |
+  #         cd build
+  #         ctest --output-on-failure
+
+  cpp-macos:
+    runs-on: macos-latest
+    steps:
+      # Install CMake
+      - name: Install CMake
+        run: |
+          brew install cmake
+      # Clone the repository
+      - uses: actions/checkout@v4
+      # CMake configure and build
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+      # Run tests
+      - name: Test
+        run: |
+          cd build
+          ctest --output-on-failure

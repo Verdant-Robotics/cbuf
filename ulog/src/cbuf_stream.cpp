@@ -1,4 +1,5 @@
 #include "cbuf_stream.h"
+#include "ulogger.h"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -8,7 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "cbuf_preamble.h"
+#include <cbuf_preamble.h>
 
 static double now() {
   struct timespec ts;
@@ -31,7 +32,11 @@ double cbuf_ostream::now() const { return ::now(); }
 
 ssize_t cbuf_ostream::file_offset() const {
   if (stream < 0) return -1;
+#if defined(__linux__)
   return lseek64(stream, 0, SEEK_CUR);
+#else
+  return lseek(stream, 0, SEEK_CUR);
+#endif
 }
 
 int cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const char* msg_name) {
@@ -180,7 +185,7 @@ bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string
     }
   } else {
     if (dictionary.count(hash) == 0) {
-      fprintf(stderr, "processing packet with hash 0x%lX does not have metadata\n", hash);
+      fprintf(stderr, "processing packet with hash 0x" U64_FORMAT_HEX " does not have metadata\n", hash);
     }
   }
 
@@ -330,7 +335,11 @@ bool cbuf_istream::open_file(const char* fname) {
   struct stat st;
   stat(fname, &st);
   filesize = st.st_size;
-  memmap_ptr = (unsigned char*)mmap(nullptr, filesize, PROT_READ, MAP_PRIVATE | MAP_POPULATE, stream, 0);
+  int flags = MAP_PRIVATE;
+#if defined(__linux__)
+  flags |= MAP_POPULATE;
+#endif
+  memmap_ptr = (unsigned char*)mmap(nullptr, filesize, PROT_READ, flags, stream, 0);
   if (memmap_ptr == MAP_FAILED) {
     return false;
   }

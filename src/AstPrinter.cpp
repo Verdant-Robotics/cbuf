@@ -29,7 +29,7 @@ AstPrinter::~AstPrinter() {}
 static void PrintAstValue(const ast_value* val, StdStringBuffer* buffer) {
   switch (val->valtype) {
     case VALTYPE_INTEGER:
-      buffer->print_no("%zd", val->int_val);
+      buffer->print_no("%zd", ssize_t(val->int_val));
       break;
     case VALTYPE_FLOAT:
       buffer->print_no("%f", val->float_val);
@@ -105,7 +105,7 @@ void AstPrinter::print_elem(ast_element* elem) {
 
   while (ar != nullptr) {
     if (ar->size != 0)
-      buffer->print_no("[%ld]", ar->size);
+      buffer->print_no("[" U64_FORMAT "]", ar->size);
     else
       buffer->print_no("[]");
     ar = ar->next;
@@ -125,7 +125,7 @@ void AstPrinter::print_enum(ast_enum* enm) {
   buffer->increase_ident();
   for (auto& el : enm->elements) {
     if (el.item_assigned) {
-      buffer->print("%s = %zd,\n", el.item_name, el.item_value);
+      buffer->print("%s = %zd,\n", el.item_name, ssize_t(el.item_value));
     } else {
       buffer->print("%s,\n", el.item_name);
     }
