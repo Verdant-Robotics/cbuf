@@ -15,12 +15,6 @@ fetch_dependency(vlog "https://github.com/Verdant-Robotics/vlog.git" "main")
 # optional hjson package, if found it exposes more functionality on the CBufParser class
 fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
 
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
-  add_compile_options(-march=x86-64-v3)
-else()
-  add_compile_options(-mcpu=native)
-endif()
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
