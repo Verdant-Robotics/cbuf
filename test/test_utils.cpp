@@ -66,7 +66,9 @@ bool compare(const messages::complex_thing& a, const messages::complex_thing& b)
   ensure(compare(a.img[2], b.img[2]), "Comparing complex thing img2");
 
   for (unsigned i = 0; i < 5; i++) {
-    ensure(a.names[i] == b.names[i], "Compare complex things names array");
+    std::string errMsg = "Compare complex things names[" + std::to_string(i) + "]: '" + a.names[i] +
+                         "' vs '" + b.names[i] + "'";
+    ensure(a.names[i] == b.names[i], errMsg.c_str());
   }
 
   ensure(a.hard_dynamic.size() == b.hard_dynamic.size(), "Compare sizes of hard_dynamic");
