@@ -6,9 +6,9 @@
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <cbuf_reader_python.h>
 #include <structmember.h>
 
+#include "cbuf_reader_python.h"
 #include "pycbuf.h"
 
 static PyObject* PyCBuf_getunsupportedoperation(void);

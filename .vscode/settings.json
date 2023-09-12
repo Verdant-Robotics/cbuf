@@ -5,6 +5,9 @@
   "[cpp]": {
     "editor.defaultFormatter": "xaver.clang-format"
   },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
   "files.eol": "\n",
   "C_Cpp.autoAddFileAssociations": false,
   "cmake.configureOnOpen": false,

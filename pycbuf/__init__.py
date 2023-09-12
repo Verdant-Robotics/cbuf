@@ -1,1 +1,1 @@
-from .pycbuf import cbufreader
+from .pycbuf import CBufReader
