@@ -6,3 +6,6 @@ requires = [
     "ninja",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.9"
