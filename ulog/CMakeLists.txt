@@ -19,6 +19,7 @@ add_library(uloglib SHARED ${ULOGLIB_SRCS})
 target_include_directories(uloglib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(uloglib PUBLIC cbuf_stream)
 
+# Build a static version of uloglib
 add_library(uloglib_static STATIC ${CBUF_STREAM_SRCS} ${ULOGLIB_SRCS})
 target_include_directories(uloglib_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(uloglib_static PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cbufmsg)
