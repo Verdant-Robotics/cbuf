@@ -123,7 +123,7 @@ void CPrinter::print(ast_namespace* sp) {
   }
 
   buffer->decrease_ident();
-  buffer->print("};\n\n");
+  buffer->print("}\n\n");
 
   // Emit GCC and clang pragmas to re-enable -Wpacked
   buffer->print("#if defined(__clang__)\n");
