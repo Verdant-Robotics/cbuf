@@ -796,6 +796,7 @@ bool convert_element_string(const ast_element* elem, const u8*& bin_buffer, size
     }
     if (!dst_elem->is_dynamic_array) {
       check_dst_array = true;
+      dst_array_size = dst_elem->array_suffix->size;
     }
   }
 
