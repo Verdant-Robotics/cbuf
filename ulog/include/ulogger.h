@@ -13,9 +13,6 @@
 #include "cbuf_stream.h"
 #include "ringbuffer.h"
 
-#define U64_FORMAT "%" PRIu64
-#define U64_FORMAT_HEX "%" PRIX64
-
 // Ulogger is a singleton class to log to a file, using cbuf serialization.
 // Example usage:
 //   ULogger::getULogger()->setLogPath(path);

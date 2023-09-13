@@ -105,7 +105,7 @@ void AstPrinter::print_elem(ast_element* elem) {
 
   while (ar != nullptr) {
     if (ar->size != 0)
-      buffer->print_no("[" U64_FORMAT "]", ar->size);
+      buffer->print_no("[%" PRIu64 "]", ar->size);
     else
       buffer->print_no("[]");
     ar = ar->next;
