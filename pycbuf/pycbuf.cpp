@@ -742,7 +742,7 @@ static PyObject* pycbuf_cbufreader_create_impl(PyObject* self, PyObject* args, P
 PyCBuf_State* pycbufmodule_getstate(PyObject* module) {
   void* state = PyModule_GetState(module);
   if (state == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "pycbuf module state is NULL");
+    PyErr_SetString(PyExc_RuntimeError, "Cannot find module state");
     return nullptr;
   }
   return (PyCBuf_State*)state;

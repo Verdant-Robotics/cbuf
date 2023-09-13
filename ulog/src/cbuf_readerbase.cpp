@@ -1,7 +1,8 @@
 #include "cbuf_readerbase.h"
-#include "ulogger.h"
 
 #include <filesystem>
+
+#include "ulogger.h"
 
 namespace fs = std::filesystem;
 
@@ -49,7 +50,7 @@ bool CBufReaderBase::computeNextSi() {
       auto msize = si->cis->get_next_size();
       auto nhash = si->cis->get_next_hash();
       fprintf(stderr,
-              " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: " U64_FORMAT_HEX
+              " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: %" PRIX64
               ") [FileSize %zu, Offset %zu], this indicates a corrupted ulog. Trying to recover...\n",
               si->filename.c_str(), msize, nhash, si->cis->get_filesize(), si->cis->get_current_offset());
       auto off = si->cis->get_current_offset();

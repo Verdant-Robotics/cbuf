@@ -71,6 +71,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
@@ -84,6 +85,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -92,6 +94,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -114,6 +117,7 @@ public:
         warned_conversion = true;
       }
     }
+    // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
     return false;
   }
 };
@@ -156,6 +160,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
@@ -171,6 +176,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -179,6 +185,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -190,6 +197,7 @@ public:
         auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
                                               cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
                                               (unsigned char*)msg, sizeof(CBufMsg));
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         if (fillret == 0) return false;
         msg->preamble.packet_timest = cis.get_next_timestamp();
 
@@ -197,10 +205,12 @@ public:
         return true;
       }
       if (!warned_conversion) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
+    // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
     return false;
   }
 };
@@ -247,6 +257,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
@@ -260,6 +271,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -268,6 +280,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -279,17 +292,19 @@ public:
         auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
                                               cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
                                               (unsigned char*)msg, sizeof(CBufMsg));
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         if (fillret == 0) return false;
 
         handler(msg);
         return true;
       }
       if (!warned_conversion) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
-
+    // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
     return false;
   }
 };
@@ -332,6 +347,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
@@ -346,6 +362,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -354,6 +371,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -365,6 +383,7 @@ public:
         auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
                                               cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
                                               (unsigned char*)msg, sizeof(CBufMsg));
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         if (fillret == 0) return false;
 
         // assuming the istream has been instantiated
@@ -376,7 +395,7 @@ public:
         warned_conversion = true;
       }
     }
-
+    // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
     return false;
   }
 };
@@ -545,6 +564,7 @@ public:
     if (hash == CBufMsg::TYPE_HASH) {
       bool ret = cis.deserialize(msg);
       if (!ret) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // Could not deserialize message of type `CBufMsg::TYPE_STRING`
         return false;
       }
@@ -557,6 +577,7 @@ public:
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -565,6 +586,7 @@ public:
         if (parserCurrent == nullptr) {
           parserCurrent = new CBufParser();
           if (!parserCurrent->ParseMetadata(CBufMsg::cbuf_string, CBufMsg::TYPE_STRING)) {
+            // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
             // Metadata could not be parsed for current message `CBufMsg::TYPE_STRING`
             return false;
           }
@@ -576,16 +598,19 @@ public:
         auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
                                               cis.get_next_size(), *parserCurrent, CBufMsg::TYPE_STRING,
                                               (unsigned char*)msg, sizeof(CBufMsg));
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         if (fillret == 0) return false;
         msg->preamble.packet_timest = cis.get_next_timestamp();
 
         return true;
       }
       if (!warned_conversion) {
+        // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
         // cbuf version mismatch for message `CBufMsg::TYPE_STRING` and conversion is not allowed
         warned_conversion = true;
       }
     }
+    // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
     return false;
   }
 

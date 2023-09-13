@@ -78,8 +78,8 @@ static void print_ast_value(const ast_value* val, StdStringBuffer* buffer) {
       break;
     }
     default:
-      printf("[FATAL] [CPrinter::print_ast_value] Unknown value type %d\n", val->valtype);
-      exit(1);
+      assert(false && "Unknown value type in print_ast_value");
+      break;
   }
 }
 
@@ -144,7 +144,7 @@ void CPrinter::helper_print_array_suffix(ast_element* elem) {
                   elem->name);
   } else {
     // plain simple static array
-    buffer->print_no(" " U64_FORMAT ";\n", elem->array_suffix->size);
+    buffer->print_no(" %" PRIu64 ";\n", elem->array_suffix->size);
   }
 }
 
@@ -190,7 +190,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("ret_size += sizeof(uint32_t); // Encode the length of %s in the var num_%s\n",
                           elem->name, elem->name);
           } else {
-            buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = %" PRIu64 ";\n", elem->name, elem->array_suffix->size);
           }
           // No need to encode elements on the static array case, we know them already
           buffer->print("for(int %s_index=0; %s_index < int(num_%s); %s_index++) {\n", elem->name, elem->name,
@@ -312,7 +312,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("*reinterpret_cast<uint32_t *>(data) = num_%s;\n", elem->name);
             buffer->print("data += sizeof(uint32_t);\n");
           } else {
-            buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = %" PRIu64 ";\n", elem->name, elem->array_suffix->size);
           }  // No need to encode the number of elements on the static array case, we know them already
           buffer->print("for(size_t %s_index=0; %s_index < num_%s; %s_index++) {\n", elem->name, elem->name,
                         elem->name, elem->name);
@@ -495,7 +495,7 @@ void CPrinter::print_net(ast_struct* st) {
             buffer->print("num_%s = *reinterpret_cast<uint32_t *>(data);\n", elem->name);
             buffer->print("data += sizeof(uint32_t);\n");
           } else {  // No need to decode the number of elements on the static array case, we know them already
-            buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
+            buffer->print("uint32_t num_%s = %" PRIu64 ";\n", elem->name, elem->array_suffix->size);
           }
           buffer->print("for(uint32_t i=0; i<num_%s; i++) {\n", elem->name);
           buffer->increase_ident();
@@ -530,7 +530,7 @@ void CPrinter::print_net(ast_struct* st) {
         } else {
           buffer->print("memcpy(this->%s, data, %d*sizeof(int32_t));\n", elem->name,
                         (int)elem->array_suffix->size);
-          buffer->print("data += " U64_FORMAT "*sizeof(int32_t);\n", elem->array_suffix->size);
+          buffer->print("data += %" PRIu64 "*sizeof(int32_t);\n", elem->array_suffix->size);
         }
       } else if (elem->type == TYPE_CUSTOM) {
         if (elem->is_dynamic_array) {
@@ -552,7 +552,7 @@ void CPrinter::print_net(ast_struct* st) {
         } else {  // @warning: what happens here when the encode net size is not the same on each elem?
           buffer->print("memcpy(this->%s, data, %d*this->%s[0].encode_net_size());\n", elem->name,
                         (int)elem->array_suffix->size, elem->name);
-          buffer->print("data += " U64_FORMAT "*this->%s[0].encode_net_size();\n", elem->array_suffix->size,
+          buffer->print("data += %" PRIu64 "*this->%s[0].encode_net_size();\n", elem->array_suffix->size,
                         elem->name);
         }
       } else {
@@ -905,7 +905,7 @@ void CPrinter::print(ast_element* elem) {
   }
   buffer->print("%s", elem->name);
   while (ar != nullptr) {
-    if (ar->size != 0) buffer->print("[" U64_FORMAT "]", ar->size);
+    if (ar->size != 0) buffer->print("[%" PRIu64 "]", ar->size);
     ar = ar->next;
   }
   if (elem->init_value != nullptr) {
@@ -1010,7 +1010,7 @@ void CPrinter::printLoader(ast_element* elem) {
                     elem->name, elem->name);
     } else {
       buffer->print("if (!json[\"%s\"].defined()) break;\n", elem->name);
-      buffer->print("uint32_t num_%s = " U64_FORMAT ";\n", elem->name, elem->array_suffix->size);
+      buffer->print("uint32_t num_%s = %" PRIu64 ";\n", elem->name, elem->array_suffix->size);
       buffer->print("for( int %s_index=0; %s_index < num_%s; %s_index++) {\n", elem->name, elem->name,
                     elem->name, elem->name);
     }
@@ -1250,8 +1250,8 @@ void CPrinter::printLoader(StdStringBuffer* buf, ast_global* top_ast, SymbolTabl
   main_file = nullptr;
 }
 
-void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs,
-                            const char* c_name, const char* outfile) {
+bool CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs,
+                            std::string& error, const char* c_name, const char* outfile) {
   buffer = buf;
 
   buffer->print("%s : %s ", outfile, c_name);
@@ -1266,11 +1266,14 @@ void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<con
         if (!p.empty()) break;
       }
       if (p.empty()) {
-        fprintf(stderr, "Include file %s could not be found!\n", top_ast->imported_files[i]);
-        exit(-1);
+        error = "Include file " + std::string(top_ast->imported_files[i]) + " could not be found!";
+        return false;
       }
     }
     buffer->print("\\\n  %s ", p.c_str());
   }
   buffer->print("\n");
+
+  error.clear();
+  return true;
 }
