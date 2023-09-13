@@ -8,5 +8,6 @@
   "files.eol": "\n",
   "C_Cpp.autoAddFileAssociations": false,
   "cmake.configureOnOpen": false,
-  "cmake.configureOnEdit": false
+  "cmake.configureOnEdit": false,
+  "cmake.generator": "Ninja"
 }
