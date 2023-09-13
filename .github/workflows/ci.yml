@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Install CMake
-      - name: Install CMake, libelf, libdwarf
+      - name: Install CMake
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libelf-dev libdwarf-dev
+          sudo apt-get install -y cmake
       # Clone the repository
       - uses: actions/checkout@v4
       # CMake configure and build
@@ -23,7 +23,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ..
+          cmake -DCMAKE_BUILD_TYPE=Debug ..
           make
       # Run tests
       - name: Test
@@ -46,7 +46,7 @@ jobs:
   #       run: |
   #         mkdir build
   #         cd build
-  #         cmake ..
+  #         cmake -DCMAKE_BUILD_TYPE=Debug ..
   #         cmake --build . --config Release
   #     # Run tests
   #     - name: Test
@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ..
+          cmake -DCMAKE_BUILD_TYPE=Debug ..
           make
       # Run tests
       - name: Test

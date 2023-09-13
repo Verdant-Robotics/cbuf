@@ -35,6 +35,6 @@ public:
   void printLoader(StdStringBuffer* buf, ast_global* top_ast, SymbolTable* symbols, const char* c_name);
 
   // Prints C-style dependencies to be used in a build system
-  void printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs, const char* c_name,
-                    const char* outfile);
+  bool printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs, std::string& error,
+                    const char* c_name, const char* outfile);
 };

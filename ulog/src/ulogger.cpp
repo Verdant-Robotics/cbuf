@@ -2,7 +2,6 @@
 
 #include <memory.h>
 #include <pthread.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include <filesystem>
@@ -14,8 +13,6 @@
 #if defined(__linux__)
 #include <linux/limits.h>
 #endif
-
-#include "vlog.h"
 
 static std::recursive_mutex g_file_mutex;
 static std::mutex g_ulogger_mutex;
@@ -47,25 +44,17 @@ int ULogger::getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t&
 void ULogger::setLogPath(const std::string& path) {
   std::lock_guard guard(g_file_mutex);
   if (outputdir != path) {
+    // Create the output directory if it does not exist
     std::error_code ec;
-    outputdir = path;
-
-    // create output path
-    if (!fs::exists(outputdir.c_str())) {
-      vlog_info(VCAT_GENERAL, "ULogger creating directory %s", outputdir.c_str());
-      if (!fs::create_directories(outputdir.c_str(), ec)) {
-        vlog_error(VCAT_GENERAL,
-                   "Error: output directory does not exist and could not create it: %s Error: %s \n",
-                   outputdir.c_str(), ec.message().c_str());
-        outputdir = ".";
+    if (!fs::exists(path.c_str())) {
+      if (!fs::create_directories(path.c_str(), ec)) {
+        reportError("Error: output directory does not exist and could not create it: " + path +
+                    " Error: " + ec.message());
+        return;
       }
     }
 
-    char hostname[128] = {};
-    gethostname(hostname, sizeof(hostname));
-    if (getenv("VLOG_TEE_LOG")) {
-      sprintf((char*)vlog_option_tee_file, "%s/%s_console_output.txt", outputdir.c_str(), hostname);
-    }
+    outputdir = path;
 
     if (cos.is_open()) {
       closeFile();
@@ -95,6 +84,12 @@ double ULogger::time_now() {
   return now;
 }
 
+void ULogger::reportError(const std::string& error) {
+  if (error_callback_) {
+    error_callback_(error);
+  }
+}
+
 void ULogger::fillUlogFilename() {
   time_t rawtime;
   struct tm* info;
@@ -109,7 +104,6 @@ void ULogger::fillUlogFilename() {
           info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_sec);
 
   if (outputdir.empty()) {
-    vlog_always("Output folder is not set, logging to the current directory");
     outputdir = ".";
   }
 
@@ -131,26 +125,33 @@ void ULogger::processPacket(void* data, int size, const char* metadata, const ch
                             const uint64_t topic_name_hash) {
   cbuf_preamble* pre = (cbuf_preamble*)data;
   if (!cos.is_open()) {
-    bool r = openFile();
-    VLOG_ASSERT(r, "Could not open the next file!!!");
+    if (!openFile()) {
+      reportError("Could not open the next ulog for writing");
+      return;
+    }
   }
 
   // Basic integrity checks
-  VLOG_ASSERT(pre->magic == CBUF_MAGIC,
-              "Expected magic to be %X, but it is %X for packet of size %d, type %s, metadata: [[ %s ]] ",
-              CBUF_MAGIC, pre->magic, size, type_name, metadata);
-  VLOG_ASSERT(pre->hash != 0);
-  VLOG_ASSERT(pre->size() != 0);
-  VLOG_ASSERT(pre->size() == size, "Ulogger, writing %d bytes but the cbuf reports it has %d bytes", size,
-              pre->size());
-
-  file_check_count++;
-  if (file_check_count > 1000) {
-    // Once in a while, check disk space
-    fs::space_info disk = fs::space(ulogfilename);
-    VLOG_ASSERT(disk.free > 1024 * 1024 * 1024, "We are running low on disk, we have %zu free bytes",
-                disk.free);
-    file_check_count = 0;
+  if (pre->magic != CBUF_MAGIC) {
+    reportError("Expected magic to be " + std::to_string(CBUF_MAGIC) + ", but it is " +
+                std::to_string(pre->magic) + " for packet of size " + std::to_string(size) + ", type " +
+                type_name + ", metadata: [[ " + metadata + " ]] ");
+    return;
+  }
+  if (pre->hash == 0) {
+    reportError("Expected hash to be non-zero for packet of size " + std::to_string(size) + ", type " +
+                type_name + ", metadata: [[ " + metadata + " ]] ");
+    return;
+  }
+  if (pre->size() == 0) {
+    reportError("Expected size to be non-zero for packet of size " + std::to_string(size) + ", type " +
+                type_name + ", metadata: [[ " + metadata + " ]] ");
+    return;
+  }
+  if (pre->size() != size) {
+    reportError("Ulogger, writing " + std::to_string(size) + " bytes but the cbuf reports it has " +
+                std::to_string(pre->size()) + " bytes");
+    return;
   }
 
   // if metadata for this type of message not already serialized then serialize it
@@ -175,7 +176,7 @@ void ULogger::processPacket(void* data, int size, const char* metadata, const ch
       write_ptr += result;
     } else {
       if (errno != EAGAIN) {
-        vlog_warning(VCAT_GENERAL, "Cbuf writing error: %d", errno);
+        reportError("Cbuf writing error " + std::to_string(errno) + ": " + strerror(errno));
       }
       error_count++;
       if (error_count > 10) {
@@ -191,14 +192,30 @@ void ULogger::processPacket(void* data, int size, const char* metadata, const ch
   current_file_size += size;
 
   // Paranoia
-  VLOG_ASSERT(pre->magic == CBUF_MAGIC, "Expected magic to be %X, but it is %X", CBUF_MAGIC, pre->magic);
-  VLOG_ASSERT(pre->hash != 0);
-  VLOG_ASSERT(pre->size() != 0);
+  if (pre->magic != CBUF_MAGIC) {
+    reportError("Expected magic to be " + std::to_string(CBUF_MAGIC) + ", but it is " +
+                std::to_string(pre->magic) + " for packet of size " + std::to_string(size) + ", type " +
+                type_name + ", metadata: [[ " + metadata + " ]] ");
+    return;
+  }
+  if (pre->hash == 0) {
+    reportError("Expected hash to be non-zero for packet of size " + std::to_string(size) + ", type " +
+                type_name + ", metadata: [[ " + metadata + " ]] ");
+    return;
+  }
+  if (pre->size() == 0) {
+    reportError("Expected size to be non-zero for packet of size " + std::to_string(size) + ", type " +
+                type_name + ", metadata: [[ " + metadata + " ]] ");
+    return;
+  }
 
   if (current_file_size > SPLIT_FILE_SIZE) {
     closeFile();
     bool r = openFile();
-    VLOG_ASSERT(r, "Could not open the next file!!!");
+    if (!r) {
+      reportError("Could not open the next ulog for writing");
+      return;
+    }
   }
 }
 
@@ -218,27 +235,23 @@ static void write_callback(const void* ptr, size_t bytes, void* usr_ptr) {
 
 bool ULogger::openFile() {
   std::lock_guard guard(g_file_mutex);
-  std::error_code ec;
 
-  // create output path
+  // Create the output directory if it does not exist
+  std::error_code ec;
   if (!fs::exists(outputdir.c_str())) {
-    vlog_info(VCAT_GENERAL, "ULogger creating directory %s", outputdir.c_str());
     if (!fs::create_directories(outputdir.c_str(), ec)) {
-      vlog_error(VCAT_GENERAL,
-                 "Error: output directory does not exist and could not create it: %s Error: %s \n",
-                 outputdir.c_str(), ec.message().c_str());
-      outputdir = ".";
+      reportError("Error: output directory does not exist and could not create it: " + outputdir +
+                  " Error: " + ec.message());
+      return false;
     }
   }
 
   fillUlogFilename();
 
-  vlog_info(VCAT_GENERAL, "Ulogger openFile %s", ulogfilename.c_str());
-
   // Open the serialization file
   bool bret = cos.open_file(ulogfilename.c_str());
   if (!bret) {
-    vlog_fatal(VCAT_GENERAL, "Could not open the ulog file for logging %s\n", ulogfilename.c_str());
+    reportError("Could not open the ulog file for logging: " + ulogfilename);
     return false;
   }
   current_file_size = 0;
@@ -292,7 +305,7 @@ void ULogger::endLoggingThread() {
   loggerThread = nullptr;
 }
 
-bool ULogger::initialize() {
+void ULogger::initialize() {
   loggerThread = new std::thread([this]() {
     name_thread();
     while (!this->quit_thread) {
@@ -336,7 +349,6 @@ bool ULogger::initialize() {
 
     closeFile();
   });
-  return true;
 }
 
 // No public constructors, this is a singleton
@@ -347,14 +359,7 @@ ULogger* ULogger::getULogger() {
 
     g_ulogger = new ULogger();
     g_ulogger->quit_thread = false;
-
-    bool bret = g_ulogger->initialize();
-    if (!bret) {
-      vlog_fatal(VCAT_GENERAL, "Could not initialize ulogger singleton");
-      delete g_ulogger;
-      return nullptr;
-    }
-
+    g_ulogger->initialize();
     initialized = true;
   }
   return g_ulogger;

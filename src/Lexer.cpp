@@ -183,7 +183,7 @@ const char* TokenTypeToCOP(TOKEN_TYPE type) {
       return st.str;
     }
   }
-  assert("We should never be here, using this function wrong");
+  assert(false && "We should never be here, using this function wrong");
   return nullptr;
 }
 
@@ -323,6 +323,7 @@ void Lexer::Error(const char* msg, ...) {
 #pragma clang diagnostic pop
 #endif
   va_end(args);
+  // TODO(https://github.com/Verdant-Robotics/cbuf/issues/9): Better error handling
   exit(1);
 }
 
@@ -457,13 +458,11 @@ void Lexer::getNextTokenInternal(Token& tok) {
         }
         if (i >= 1024 - 1) {
           Error("Found string too long to parse\n");
-          exit(1);
         }
         backslash = (c == '\\');
       }
       if (isNewLine(c)) {
         Error("Newlines are not allowed inside a quoted string\n");
-        exit(1);
       }
       s[i++] = 0;
       tok.type = TK_STRING;

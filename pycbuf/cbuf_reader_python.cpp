@@ -1,7 +1,5 @@
 #include "cbuf_reader_python.h"
 
-#include <vlog.h>
-
 static void split_namespace(const std::string& full_name, std::string& spname, std::string& name) {
   std::string::size_type pos = 0;
 
@@ -63,8 +61,10 @@ PyObject* CBufReaderPython::getMessage(PyObject* module) {
     // check if the topic name for this message has a namespace
 
     auto msize = next_cis->get_next_size();
-    VLOG_ASSERT(msize != 0 && next_cis->check_next_preamble(),
-                "All corrupted cbuf issues should be handled on computeNextSi");
+    if (msize == 0 || !next_cis->check_next_preamble()) {
+      error_string_ = "All corrupted cbuf issues should be handled on computeNextSi";
+      return nullptr;
+    }
 
     // Check for the role filter applying to the cbuf is done on open
     // Check if early or late applies
@@ -87,7 +87,7 @@ PyObject* CBufReaderPython::getMessage(PyObject* module) {
       auto* parser = msg_map_[str].parser;
 
       if (!parser->ParseMetadata(next_cis->get_meta_string_for_hash(nhash), str)) {
-        vlog_error(VCAT_GENERAL, "metadata could not be parsed for message %s", str.c_str());
+        error_string_ = "metadata could not be parsed for message " + str;
         msg_map_[str].parsing_failed = true;
         skip_msg_due_to_parsing = true;
       }
@@ -138,7 +138,10 @@ bool CBufReaderPython::openMemory(const char* filename, const char* data, size_t
     input_streams.push_back(si);
   }
 
-  VLOG_ASSERT(input_streams.size() == 1, "Only one stream supported for memory, do not mix with files");
+  if (input_streams.size() != 1) {
+    error_string_ = "Only one stream supported for memory, do not mix with files";
+    return false;
+  }
   input_streams[0]->cis->set_filename(filename);
   input_streams[0]->cis->open_memory((const unsigned char*)data, size);
   // We have to mark finish_reading as false as we could have consumed previous data

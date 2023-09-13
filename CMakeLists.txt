@@ -11,8 +11,7 @@ include(FetchDependency)
 include(FetchContent)
 include(AddTest)
 
-fetch_dependency(vlog "https://github.com/Verdant-Robotics/vlog.git" "main")
-# optional hjson package, if found it exposes more functionality on the CBufParser class
+# Optional hjson package, if found it exposes more functionality on the CBufParser class
 fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -138,19 +137,12 @@ endif()
 add_library(cbuf_internal INTERFACE)
 target_include_directories(cbuf_internal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-option(ENABLE_CBUF_TESTS "Enable Tests" OFF)
+option(ENABLE_CBUF_TESTS "Enable Tests" ON)
 
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-  set(CBUF_MAIN_PROJECT TRUE)
-else()
-  set(CBUF_MAIN_PROJECT FALSE)
-endif()
-
-if(${ENABLE_CBUF_TESTS} OR ${CBUF_MAIN_PROJECT})
+if(${ENABLE_CBUF_TESTS})
   enable_testing()
+  add_subdirectory(test)
 endif()
 
 add_subdirectory(ulog)
-add_subdirectory(test)
-
 add_subdirectory(pycbuf)

@@ -9,12 +9,12 @@
 #include "test_utils.h"
 
 // built from samples/image.cbuf
-#include "image.h" 
+#include "image.h"
 #include "image_json.h"
 
 #if defined(HJSON_PRESENT)
 
-// Test FillHjson method. 
+// Test FillHjson method.
 TEST(HJsonParsing, Simple) {
   messages::image img1;
   set_data(img1, 43);
@@ -122,8 +122,6 @@ TEST(CParsing, Simple) {
             0);
   ASSERT_TRUE(compare(img1, img2));
 }
-
-//#pragma clang diagnostic ignored "-Wunused-variable"
 
 TEST(CParsing, Complex) {
   messages::complex_thing th1;

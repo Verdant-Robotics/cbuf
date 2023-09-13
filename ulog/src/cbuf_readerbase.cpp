@@ -1,9 +1,8 @@
 #include "cbuf_readerbase.h"
-#include "ulogger.h"
 
 #include <filesystem>
 
-#include <vlog.h>
+#include "ulogger.h"
 
 namespace fs = std::filesystem;
 
@@ -51,7 +50,7 @@ bool CBufReaderBase::computeNextSi() {
       auto msize = si->cis->get_next_size();
       auto nhash = si->cis->get_next_hash();
       fprintf(stderr,
-              " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: " U64_FORMAT_HEX
+              " ** Reading a cbuf message on %s with invalid preamble (size: %u, hash: %" PRIX64
               ") [FileSize %zu, Offset %zu], this indicates a corrupted ulog. Trying to recover...\n",
               si->filename.c_str(), msize, nhash, si->cis->get_filesize(), si->cis->get_current_offset());
       auto off = si->cis->get_current_offset();
@@ -81,16 +80,11 @@ bool CBufReaderBase::computeNextSi() {
   }
 
   // Find earliest packet
-  StreamInfo* prev_si = next_si;
   next_si = input_streams[0];
   for (auto si : input_streams) {
     if (si->packet_time < next_si->packet_time) {
       next_si = si;
     }
-  }
-
-  if (next_si != prev_si) {
-    vlog_fine(VCAT_GENERAL, "[cbuf_reader] ************** %s ************", next_si->filename.c_str());
   }
 
   if (next_si->cis->empty() || !is_valid_late(next_si->packet_time)) {
@@ -105,7 +99,6 @@ bool CBufReaderBase::computeNextSi() {
 bool CBufReaderBase::openUlog(bool error_ok) {
   if (!fs::exists(ulog_path_)) {
     error_string_ = "Could not find ulog path " + ulog_path_;
-    vlog_error(VCAT_GENERAL, "%s", error_string_.c_str());
     return false;
   }
   for (const auto& f : fs::directory_iterator(ulog_path_)) {
@@ -125,7 +118,6 @@ bool CBufReaderBase::openUlog(bool error_ok) {
           continue;
         }
       }
-      vlog_fine(VCAT_GENERAL, "Found cbuf file: %s", f.path().c_str());
       // this is a cb file, open it
       StreamInfo* si = new StreamInfo;
       si->cis = new cbuf_istream();
@@ -136,9 +128,6 @@ bool CBufReaderBase::openUlog(bool error_ok) {
         input_streams.push_back(si);
       } else {
         error_string_ = "Could not open file " + fname + " for reading.";
-        if (!error_ok) {
-          vlog_error(VCAT_GENERAL, "%s", error_string_.c_str());
-        }
         delete si;
         if (!options_.try_recovery) {
           error_string_ +=
@@ -151,7 +140,6 @@ bool CBufReaderBase::openUlog(bool error_ok) {
   if (input_streams.size() == 0) {
     if (!error_ok) {
       error_string_ = "Could not find any 'cb' file on the ulog file " + ulog_path_;
-      vlog_error(VCAT_GENERAL, "%s", error_string_.c_str());
       return false;
     }
   }

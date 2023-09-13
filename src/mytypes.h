@@ -1,8 +1,9 @@
 #pragma once
 
-#include <cinttypes>
 #include <inttypes.h>
 #include <stdint.h>
+
+#include <cinttypes>
 
 #if defined(_WINDOWS) || defined(_WIN32)
 #define PLATFORM_WINDOWS
@@ -13,9 +14,6 @@
 #define PLATFORM_MACOS
 #define PLATFORM_POSIX
 #endif
-
-#define U64_FORMAT "%" PRIu64
-#define U64_FORMAT_HEX "%" PRIX64
 
 typedef signed char s8;
 typedef signed short s16;

@@ -144,8 +144,10 @@ bool CBufReaderWindow::processGetters() {
   // check if the topic name for this message has a namespace
 
   auto msize = next_cis->get_next_size();
-  VLOG_ASSERT(msize != 0 && next_cis->check_next_preamble(),
-              "All corrupted cbuf issues should be handled on computeNextSi");
+  if (msize == 0 || !next_cis->check_next_preamble()) {
+    error_string_ = "All corrupted cbuf issues should be handled on computeNextSi";
+    return false;
+  }
 
   if ((is_external_ || isCorrectBox()) && info_getters_map.count(str) > 0) {
     auto& handler = info_getters_map[str];
@@ -167,8 +169,10 @@ bool CBufReaderWindow::processMessage() {
   // check if the topic name for this message has a namespace
 
   auto msize = next_cis->get_next_size();
-  VLOG_ASSERT(msize != 0 && next_cis->check_next_preamble(),
-              "All corrupted cbuf issues should be handled on computeNextSi");
+  if (msize == 0 || !next_cis->check_next_preamble()) {
+    error_string_ = "All corrupted cbuf issues should be handled on computeNextSi";
+    return false;
+  }
 
   if ((is_external_ || isCorrectBox()) && msg_map.count(str) > 0) {
     for (auto& handler : msg_map[str]) {
@@ -198,8 +202,10 @@ bool CBufReaderWindow::processSilently() {
   // check if the topic name for this message has a namespace
 
   auto msize = next_cis->get_next_size();
-  VLOG_ASSERT(msize != 0 && next_cis->check_next_preamble(),
-              "All corrupted cbuf issues should be handled on computeNextSi");
+  if (msize == 0 || !next_cis->check_next_preamble()) {
+    error_string_ = "All corrupted cbuf issues should be handled on computeNextSi";
+    return false;
+  }
 
   if ((is_external_ || isCorrectBox()) && info_getters_map.count(str) > 0) {
     auto& handler = info_getters_map[str];
