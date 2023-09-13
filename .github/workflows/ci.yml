@@ -78,13 +78,16 @@ jobs:
 
   # Build Python wheels for Linux ARM64 on x86_64 using QEMU
   python_wheels_arm:
-    name: Build Python ARM wheels in qemu
+    name: Build python-${{ matrix.python }} arm64 wheel in qemu
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up QEMU
-        if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
@@ -100,6 +103,7 @@ jobs:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_ARCHS: aarch64
           CIBW_SKIP: "pp* *-musllinux_*"
+          CIBW_PROJECT_REQUIRES_PYTHON: "==${{ matrix.python }}"
 
       - uses: actions/upload-artifact@v3
         with:
