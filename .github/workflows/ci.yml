@@ -8,59 +8,29 @@ on:
     branches: ["*"]
 
 jobs:
-  cpp-linux:
-    runs-on: ubuntu-latest
+  # Build and test C++ across multiple platforms
+  cpp:
+    name: C++ Build and Test on ${{ matrix.os }}
+    strategy:
+      matrix:
+        # TODO(https://github.com/Verdant-Robotics/cbuf/issues/4): Fix Windows build
+        os: [ubuntu-latest, macos-latest] #, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      # Install CMake
+      # Install CMake (platform-specific)
       - name: Install CMake
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake
-      # Clone the repository
-      - uses: actions/checkout@v4
-      # CMake configure and build
-      - name: Build
-        run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Debug ..
-          make
-      # Run tests
-      - name: Test
-        run: |
-          cd build
-          ctest --output-on-failure
-
-  # TODO(https://github.com/Verdant-Robotics/cbuf/issues/4): Fix Windows build
-  # cpp-windows:
-  #   runs-on: windows-latest
-  #   steps:
-  #     # Install CMake
-  #     - name: Install CMake
-  #       run: |
-  #         choco install cmake
-  #     # Clone the repository
-  #     - uses: actions/checkout@v4
-  #     # CMake configure and build
-  #     - name: Build
-  #       run: |
-  #         mkdir build
-  #         cd build
-  #         cmake -DCMAKE_BUILD_TYPE=Debug ..
-  #         cmake --build . --config Release
-  #     # Run tests
-  #     - name: Test
-  #       run: |
-  #         cd build
-  #         ctest --output-on-failure
-
-  cpp-macos:
-    runs-on: macos-latest
-    steps:
-      # Install CMake
       - name: Install CMake
+        if: matrix.os == 'macos-latest'
         run: |
           brew install cmake
+      - name: Install CMake
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake
       # Clone the repository
       - uses: actions/checkout@v4
       # CMake configure and build
@@ -69,9 +39,131 @@ jobs:
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Debug ..
-          make
+          cmake --build . --config Release
       # Run tests
       - name: Test
         run: |
           cd build
           ctest --output-on-failure
+
+  # Build Python wheels for x86_64 Linux and universal2 on macOS
+  python_wheels:
+    name: Build Python wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v3
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.15.0
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS: x86_64
+          CIBW_SKIP: "pp* *-musllinux_*"
+          CIBW_ARCHS_MACOS: universal2
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.15
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
+  # Build Python wheels for Linux ARM64 on x86_64 using QEMU
+  python_wheels_arm:
+    name: Build python-${{ matrix.python }} arm64 wheel in qemu
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["310", "311", "312"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - uses: actions/setup-python@v3
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.15.0
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS: aarch64
+          CIBW_BUILD: "cp${{ matrix.python }}-manylinux_aarch64"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
+  # Assemble a source distribution tarball
+  python_sdist:
+    name: Python source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build SDist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: dist/*.tar.gz
+
+  # Publish test builds to TestPyPI
+  pypi_test:
+    needs: [python_wheels, python_wheels_arm, python_sdist]
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    # Don't allow PRs from forks to publish to TestPyPI
+    if: ${{ !github.event.pull_request.head.repo.fork }}
+    steps:
+      # Download the default artifact and unpack into dist/
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: dist
+
+      # Log the contents of dist/
+      - run: ls -l dist
+
+      # Publish to TestPyPI (uses API token to authenticate)
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.TESTPYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  # When a release is published in the GitHub web UI, publish to PyPI
+  pypi_release:
+    needs: [python_wheels, python_wheels_arm, python_sdist]
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
+    steps:
+      # Download the default artifact and unpack into dist/
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: dist
+
+      # Log the contents of dist/
+      - run: ls -l dist
+
+      # Publish to PyPI (uses OpenID Connect to authenticate)
+      - uses: pypa/gh-action-pypi-publish@release/v1

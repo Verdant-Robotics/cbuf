@@ -209,7 +209,7 @@ bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string
   }
   auto num = write(stream, cis->ptr, nsize);
   if (num != nsize) {
-    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %ld\n", nsize, num);
+    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %zd\n", nsize, num);
     return false;
   }
   if (file_write_callback_) {

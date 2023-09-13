@@ -7,8 +7,6 @@
 #include <unordered_map>
 #include <vector>
 
-#define VCAT_PYCBUF "PYCBUF"
-
 // clang-format off
 struct __attribute__((__packed__)) pycbuf_preamble {
   PyObject_HEAD

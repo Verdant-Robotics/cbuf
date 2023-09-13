@@ -2,6 +2,7 @@
 {
   "recommendations": [
     "esbenp.prettier-vscode",
+    "ms-python.black-formatter",
     "ms-vscode.cpptools",
     "xaver.clang-format"
   ],
