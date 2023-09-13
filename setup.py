@@ -22,6 +22,7 @@ setup(
     # skbuild options
     cmake_args=[
         "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DENABLE_HJSON=OFF",
         "-DENABLE_CBUF_TESTS=OFF",
     ],
 )
