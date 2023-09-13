@@ -48,6 +48,7 @@ else()
     -Wno-global-constructors \
     -Wno-exit-time-destructors \
     -Wno-double-promotion \
+    -Wno-unsafe-buffer-usage \
     -Wno-gnu-zero-variadic-macro-arguments")
 
   # TODO(jhurliman): Fix these warnings
