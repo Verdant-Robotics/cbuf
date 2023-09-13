@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 
   if (!parseArgs(args, argc, argv) || args.help) {
     usage();
-    exit(0);
+    exit(args.help ? 0 : -1);
   }
 
   parser.interp = &interp;
@@ -197,7 +197,11 @@ int main(int argc, char** argv) {
     const std::string srcFile = getCanonicalPath(args.srcfile);
     const std::string dstFile = getCanonicalPath(args.outfile);
 
-    printer.printDepfile(&deptext, top_ast, args.incs, srcFile.c_str(), dstFile.c_str());
+    std::string error;
+    if (!printer.printDepfile(&deptext, top_ast, args.incs, error, srcFile.c_str(), dstFile.c_str())) {
+      fprintf(stderr, "%s\n", error.c_str());
+      return -1;
+    }
     FILE* f = fopen(args.depfile, "w");
     if (f == nullptr) {
       fprintf(stderr, "File %s could not be opened for writing\n", args.depfile);

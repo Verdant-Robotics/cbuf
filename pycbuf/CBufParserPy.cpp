@@ -793,6 +793,8 @@ unsigned int CBufParserPy::FillPyObject(uint64_t hash, const char* st_name, cons
 
   const cbuf_preamble* pre = (const cbuf_preamble*)buffer;
   if (pre->hash != hash) {
+    PyErr_Format(PyExc_ValueError, "Hash mismatch decoding type `%s`, expected %" PRIX64 ", got %" PRIX64,
+                 cbuf_type->name, hash, pre->hash);
     obj = nullptr;
     buffer = nullptr;
     return 0;

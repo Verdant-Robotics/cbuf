@@ -13,7 +13,7 @@ class Lexer {
   Array<Token> tokens;
   unsigned int token_index;
   void consumeWhiteSpace();
-  void Error(const char* msg, ...);
+  [[noreturn]] void Error(const char* msg, ...);
   void getNextTokenInternal(Token& tok);
   bool parseStringToken(char* input, Token& tok);
   void parseNumber(Token& tok, char c);

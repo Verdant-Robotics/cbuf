@@ -56,9 +56,8 @@ static void PrintAstValue(const ast_value* val, StdStringBuffer* buffer) {
       buffer->print_no("%s", val->str_val);
       break;
     default:
-      // TODO(kartikarcot): Need to relay the error to the user somehow
-      printf("[FATAL] Unknown value provided to PrintAstValue!\n");
-      exit(1);
+      assert(false && "Unknown value type in PrintAstValue");
+      break;
   }
 }
 

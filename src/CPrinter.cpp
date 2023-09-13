@@ -78,8 +78,8 @@ static void print_ast_value(const ast_value* val, StdStringBuffer* buffer) {
       break;
     }
     default:
-      printf("[FATAL] [CPrinter::print_ast_value] Unknown value type %d\n", val->valtype);
-      exit(1);
+      assert(false && "Unknown value type in print_ast_value");
+      break;
   }
 }
 
@@ -1250,8 +1250,8 @@ void CPrinter::printLoader(StdStringBuffer* buf, ast_global* top_ast, SymbolTabl
   main_file = nullptr;
 }
 
-void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs,
-                            const char* c_name, const char* outfile) {
+bool CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<const char*>& incs,
+                            std::string& error, const char* c_name, const char* outfile) {
   buffer = buf;
 
   buffer->print("%s : %s ", outfile, c_name);
@@ -1266,11 +1266,14 @@ void CPrinter::printDepfile(StdStringBuffer* buf, ast_global* top_ast, Array<con
         if (!p.empty()) break;
       }
       if (p.empty()) {
-        fprintf(stderr, "Include file %s could not be found!\n", top_ast->imported_files[i]);
-        exit(-1);
+        error = "Include file " + std::string(top_ast->imported_files[i]) + " could not be found!";
+        return false;
       }
     }
     buffer->print("\\\n  %s ", p.c_str());
   }
   buffer->print("\n");
+
+  error.clear();
+  return true;
 }
