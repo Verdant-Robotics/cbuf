@@ -63,12 +63,18 @@ bool process_element_py(const ast_element* elem, const u8*& bin_buffer, size_t& 
       buf_size -= sizeof(val);
       PyObject* innerobj = nullptr;
       if (mdef->type == T_BOOL) {
-        if (sizeof(T) != 1) return false;
+        if (sizeof(T) != 1) {
+          PyErr_Format(PyExc_ValueError, "Invalid size for bool (%d)", sizeof(T));
+          return false;
+        }
         innerobj = PyBool_FromLong((uint8_t)val);
       } else {
         innerobj = BuildPyObjectFromNumber(val);
       }
-      if (innerobj == nullptr) return false;
+      if (innerobj == nullptr) {
+        PyErr_Format(PyExc_ValueError, "Invalid value for %s", mdef->name);
+        return false;
+      }
       PyList_SET_ITEM(list, i, innerobj);
     }
     *(PyObject**)(byte_ptr + mdef->offset) = list;
@@ -341,21 +347,31 @@ static int ElemTypeToPyCType(ast_element* e, SymbolTable* sym) {
         return T_UINT;
       } else {
         auto* inner_st = sym->find_struct(e);
-        if (inner_st == nullptr) return 0;
+        if (inner_st == nullptr) {
+          PyErr_Format(PyExc_TypeError, "Unknown custom type %s", e->custom_name);
+          return 0;
+        }
         return T_OBJECT;
       }
     }
   }
+  PyErr_Format(PyExc_TypeError, "Unknown element type %d", e->type);
   return 0;
 }
 
 static PyObject* DynamicStr(PyObject* obj) {
   PyObject* mod = PyType_GetModule(obj->ob_type);
   PyCBuf_State* state = pycbufmodule_getstate(mod);
-  if (state == nullptr) return nullptr;
+  if (state == nullptr) {
+    PyErr_Format(PyExc_RuntimeError, "Cannot find module state");
+    return nullptr;
+  }
 
   pycbuf_preamble* pre = (pycbuf_preamble*)obj;
-  if (!state->info_map->contains(pre->hash)) return nullptr;
+  if (!state->info_map->contains(pre->hash)) {
+    PyErr_Format(PyExc_RuntimeError, "Cannot find hash %" PRIX64, pre->hash);
+    return nullptr;
+  }
   PyTypeInfo& pyinfo = (*state->info_map)[pre->hash];
 
   u8* byte_ptr = (u8*)obj;
@@ -422,6 +438,7 @@ static PyObject* DynamicStr(PyObject* obj) {
         break;
       }
       default:
+        PyErr_Format(PyExc_TypeError, "Unsupported type: %d", md->type);
         return nullptr;
     }
   }
@@ -432,10 +449,16 @@ static PyObject* DynamicStr(PyObject* obj) {
 
 static void DynamicDealloc(PyObject* obj) {
   PyCBuf_State* state = (PyCBuf_State*)PyType_GetModuleState(Py_TYPE(obj));
-  if (state == nullptr) return;
+  if (state == nullptr) {
+    PyErr_Format(PyExc_RuntimeError, "Cannot find module state");
+    return;
+  }
 
   pycbuf_preamble* pre = (pycbuf_preamble*)obj;
-  if (!state->info_map->contains(pre->hash)) return;
+  if (!state->info_map->contains(pre->hash)) {
+    PyErr_Format(PyExc_RuntimeError, "Cannot find hash %" PRIX64, pre->hash);
+    return;
+  }
   PyTypeInfo& pyinfo = (*state->info_map)[pre->hash];
 
   u8* byte_ptr = (u8*)obj;
@@ -453,18 +476,27 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   PyTypeObject* pyType = nullptr;
   if (state->info_map->contains(hash)) {
     pyType = (PyTypeObject*)(*state->info_map)[hash].type;
-    if (pyType == nullptr) return nullptr;
-    if (PyType_Check(pyType) == 0) return nullptr;
+    if (pyType == nullptr) {
+      PyErr_Format(PyExc_ValueError, "Missing PyTypeObject for hash %" PRIX64, hash);
+      return nullptr;
+    }
+    if (PyType_Check(pyType) == 0) {
+      PyErr_Format(PyExc_ValueError, "Invalid PyTypeObject for hash %" PRIX64, hash);
+      return nullptr;
+    }
     return pyType;
   }
 
   // We did not have a type, we have to create it
   if (state->info_map->contains(hash)) {
-    // We should not have seen this hash, otherwise there should be a type
+    PyErr_Format(PyExc_ValueError, "Hash collision %" PRIX64, hash);
     return nullptr;
   }
   PyTypeInfo& pyinfo = (*state->info_map)[hash];
-  if (!computeSizes(st, sym)) return nullptr;
+  if (!computeSizes(st, sym)) {
+    PyErr_Format(PyExc_ValueError, "Cannot compute sizes for hash %" PRIX64, hash);
+    return nullptr;
+  }
   //+1
   PyMemberDef* members = (PyMemberDef*)state->pool->alloc(sizeof(PyMemberDef) * (st->elements.size() + 2));
   for (int im = 0; im < st->elements.size(); im++) {
@@ -536,6 +568,7 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
 bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject* m, PyObject*& obj,
                                         PyCBuf_State* state) {
   if (!compute_hash(st, sym)) {
+    PyErr_Format(PyExc_ValueError, "Cannot compute hash for type %s (hash %" PRIX64 ")", st->name, hash);
     obj = nullptr;
     success = false;
     return false;
@@ -544,6 +577,8 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
   // hash
   if (hash > 0) {
     if (st->hash_value != hash) {
+      PyErr_Format(PyExc_ValueError, "Hash mismatch decoding type `%s`, expected %" PRIX64 ", got %" PRIX64,
+                   st->name, st->hash_value, hash);
       obj = nullptr;
       success = false;
       return false;
@@ -552,13 +587,16 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
     hash = st->hash_value;
   }
 
-  // Search the module for an object with of the py_type st_name;
+  // Get the python type for this hash and ast_struct
   PyTypeObject* pyType = GetPyTypeFromCBuf(hash, st, m, state);
-  if (pyType == nullptr || PyErr_Occurred()) {
+  if (pyType == nullptr) {
+    PyErr_Format(PyExc_ValueError, "Failed to create PyTypeObject for hash %" PRIX64, hash);
     obj = nullptr;
     success = false;
     return false;
   }
+
+  // PyErr_Occurred()
 
   // Create a python object of that type (EXTRA: use default values from cbuf)
   obj = PyObject_CallObject((PyObject*)pyType, nullptr);
@@ -581,8 +619,7 @@ bool CBufParserPy::FillPyObjectInternal(uint64_t hash, ast_struct* st, PyObject*
     pypre->type_name = st->name;
     pypre->source_name = source_cbuf_file_;
     if (pre->hash != hash) {
-      PyErr_Format(PyExc_ValueError,
-                   "Hash mismatch decoding type `%s`, expected " U64_FORMAT_HEX ", got " U64_FORMAT_HEX,
+      PyErr_Format(PyExc_ValueError, "Hash mismatch decoding type `%s`, expected %" PRIX64 ", got %" PRIX64,
                    st->name, hash, pre->hash);
       success = false;
       return false;
