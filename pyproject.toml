@@ -9,5 +9,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycbuf"
+readme = "README.md"
 dynamic = ["authors", "license", "version", "description"]
 requires-python = ">=3.10"
