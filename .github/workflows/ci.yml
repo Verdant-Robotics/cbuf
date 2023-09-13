@@ -80,11 +80,18 @@ jobs:
     name: Build Python wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
       - uses: actions/setup-python@v3
 
@@ -94,7 +101,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_ARCHS: auto64
+          CIBW_ARCHS: x86_64,aarch64
           CIBW_ARCHS_MACOS: universal2
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.15
