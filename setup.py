@@ -9,5 +9,5 @@ setup(
     author_email="info@verdantrobotics.com",
     url="https://github.com/Verdant-Robotics/cbuf",
     packages=["pycbuf"],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
 )

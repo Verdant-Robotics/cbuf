@@ -127,3 +127,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# OS generated files
+.DS_Store
