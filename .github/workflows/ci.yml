@@ -66,6 +66,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
+          CIBW_BUILD_VERBOSITY: 1
           CIBW_ARCHS: x86_64
           CIBW_SKIP: "pp* *-musllinux_*"
           CIBW_ARCHS_MACOS: universal2
@@ -96,6 +97,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
+          CIBW_BUILD_VERBOSITY: 1
           CIBW_ARCHS: aarch64
           CIBW_SKIP: "pp* *-musllinux_*"
 
