@@ -82,7 +82,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.11", "3.12"]
+        python: ["310", "311", "312"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,9 +101,7 @@ jobs:
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_ARCHS: aarch64
-          CIBW_SKIP: "pp* *-musllinux_*"
-          CIBW_PROJECT_REQUIRES_PYTHON: "==${{ matrix.python }}"
+          CIBW_BUILD: "cp${{ matrix.python }}-manylinux_aarch64"
 
       - uses: actions/upload-artifact@v3
         with:
