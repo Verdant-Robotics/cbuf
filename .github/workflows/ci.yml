@@ -148,13 +148,13 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
 
-  # When a release is published in the GitHub web UI, publish to PyPI
+  # When a release tag is pushed, publish to PyPI
   pypi_release:
     needs: [python_wheels, python_wheels_arm, python_sdist]
     permissions:
       id-token: write
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
+    if: startsWith(github.ref, 'refs/tags/releases/')
     steps:
       # Download the default artifact and unpack into dist/
       - uses: actions/download-artifact@v3
