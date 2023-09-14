@@ -3,7 +3,11 @@ cmake_minimum_required(VERSION 3.13.0)
 include(BuildCbuf)
 include(FetchDependency)
 
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
 fetch_dependency(gtest "https://github.com/google/googletest.git" "8a6feabf04bec8fb125e0df0ad1195c42350725f")
+
+target_compile_options(gtest PRIVATE "-Wno-error")
 
 build_cbuf(NAME test_cbuf_samples MSG_FILES samples/image.cbuf samples/inctype.cbuf)
 
@@ -13,7 +17,7 @@ target_include_directories(test_main PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/samples)
 add_unit_test(NAME test_main COMMAND test_main)
 
 add_executable(test_ulogger test_ulogger.cpp samples/image.h)
-target_link_libraries(test_ulogger gtest test_cbuf_samples cbuf_lib uloglib gtest)
+target_link_libraries(test_ulogger test_cbuf_samples cbuf_lib uloglib gtest)
 target_include_directories(test_ulogger PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/samples)
 add_unit_test(NAME test_ulogger COMMAND test_ulogger)
 
