@@ -25,7 +25,7 @@ void set_data(messages::image& img, unsigned seed) {
 }
 
 TEST(RecordOneMessage, ULogger) {
-  std::string currentpath = fs::current_path();
+  std::string currentpath = fs::current_path().string();
   // printf( "currentpath %s\n", currentpath.c_str() );
   ULogger::getULogger()->setLogPath(currentpath);
 
@@ -53,7 +53,7 @@ TEST(RecordOneMessage, ULogger) {
 }
 
 TEST(RecordManyMessages, ULogger) {
-  std::string currentpath = fs::current_path();
+  std::string currentpath = fs::current_path().string();
   // printf( "currentpath %s\n", currentpath.c_str() );
   ULogger::getULogger()->setLogPath(currentpath.c_str());
 
