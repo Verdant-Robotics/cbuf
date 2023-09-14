@@ -11,6 +11,16 @@
 #include "cbuf_preamble.h"
 
 #if defined(_WIN32)
+#ifdef BUILDING_SHARED_LIB
+#define CBUF_API __declspec(dllexport)
+#else
+#define CBUF_API __declspec(dllimport)
+#endif
+#else
+#define CBUF_API
+#endif
+
+#if defined(_WIN32)
 #include <basetsd.h>
 using ssize_t = SSIZE_T;
 #endif
@@ -31,7 +41,7 @@ enum class FileWriteType {
 using pre_file_write_callback_t = std::function<void(FileWriteType)>;
 
 // Note: these classes will compact whenever possible, to work with ulogger
-class cbuf_ostream {
+class CBUF_API cbuf_ostream {
   // This is a dictionary which maps the message type hash to message type string
   std::map<uint64_t, std::string> dictionary;
   // This is a dictionary which maps the topic type hash to its list of sorted topics with same type
@@ -155,7 +165,7 @@ typedef unsigned char* (*mem_alloc_callback_t)(size_t, void*);
 typedef void (*write_complete_callback_t)(unsigned char*, size_t, void*);
 
 // This class serializes cbuf into a callback stream
-class cbuf_cstream {
+class CBUF_API cbuf_cstream {
   // This is a dictionary which maps the message type hash to message type string
   std::map<uint64_t, std::string> dictionary;
   // This is a dictionary which maps the topic type hash to its list of sorted topics with same type
@@ -212,7 +222,7 @@ public:
   }
 };
 
-class cbuf_istream {
+class CBUF_API cbuf_istream {
   friend class cbuf_ostream;
   std::map<uint64_t, std::string> dictionary;
   std::map<uint64_t, std::string> metadictionary;

@@ -112,6 +112,7 @@ endif()
 
 # Add a shared version of cbuf_parse for those programs needing position independent code
 add_library(cbuf_parse_dynamic SHARED ${CBUF_PARSE_SRCS} ${CBUF_HDRS})
+target_compile_definitions(cbuf_parse_dynamic PRIVATE BUILDING_SHARED_LIB)
 target_include_directories(cbuf_parse_dynamic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 install(TARGETS cbuf_parse_dynamic DESTINATION lib)
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND ${CMAKE_CXX_COMPILER_VERSION} VERSION_GREATER_EQUAL "14.0.0")

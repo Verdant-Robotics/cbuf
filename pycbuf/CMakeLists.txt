@@ -3,6 +3,7 @@ find_package(Python3 COMPONENTS Interpreter Development)
 
 if(Python3_FOUND)
     add_library(pycbuf SHARED pycbuf.cpp CBufParserPy.cpp cbuf_reader_python.cpp)
+    target_compile_definitions(pycbuf PRIVATE BUILDING_SHARED_LIB)
     target_include_directories(pycbuf PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(pycbuf PUBLIC Python3::Module uloglib cbuf_internal)
     target_compile_options(pycbuf PRIVATE -Wno-unused-function)
