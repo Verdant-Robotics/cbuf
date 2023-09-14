@@ -5,8 +5,11 @@
 
 #include <cinttypes>
 
-#if defined(_WINDOWS) || defined(_WIN32)
+#if defined(_WIN32)
 #define PLATFORM_WINDOWS
+// Define ssize_t on Windows
+#include <basetsd.h>
+using ssize_t = SSIZE_T;
 #elif defined(__linux__) || defined(__FreeBSD__)
 #define PLATFORM_LINUX
 #define PLATFORM_POSIX

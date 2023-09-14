@@ -48,12 +48,14 @@ else()
     -Wno-global-constructors \
     -Wno-exit-time-destructors \
     -Wno-double-promotion \
+    -Wno-reserved-identifier \
     -Wno-unsafe-buffer-usage \
     -Wno-gnu-zero-variadic-macro-arguments")
 
   # TODO(jhurliman): Fix these warnings
   set(CMAKE_CXX_FLAGS
           "${CMAKE_CXX_FLAGS} \
+    -Wno-cast-function-type-strict \
     -Wno-unused-parameter \
     -Wno-weak-vtables \
     -Wno-old-style-cast \

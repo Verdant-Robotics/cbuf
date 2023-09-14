@@ -1,13 +1,19 @@
 #pragma once
-#include <assert.h>
-#include <unistd.h>
 
+#include <assert.h>
+
+#include <cstdio>
 #include <functional>
 #include <map>
 #include <string>
 #include <vector>
 
 #include "cbuf_preamble.h"
+
+#if defined(_WIN32)
+#include <basetsd.h>
+using ssize_t = SSIZE_T;
+#endif
 
 class ULogger;
 class cbuf_istream;
@@ -37,7 +43,7 @@ class cbuf_ostream {
   void* write_callback_usr_ptr_ = nullptr;
 
   std::string fname_;
-  int stream = -1;
+  FILE* stream = nullptr;
 
   double now() const;
 
@@ -53,6 +59,7 @@ public:
   cbuf_ostream() {}
   ~cbuf_ostream() { close(); }
 
+#if !defined(_WIN32)
   // Sets the handle used by the ostream to an externally created handle.
   // Can be a file that was previously opened, a network socket, or something else (that can be written to
   // with write() ) Assumes "ownership" over the open call to the handle - ie:
@@ -70,10 +77,11 @@ public:
     assert(stream == -1);
     stream = handle;
   }
+#endif
 
   void close();
 
-  bool is_open() const { return stream != -1; }
+  bool is_open() const { return stream != nullptr; }
 
   bool open_file(const char* fname);
 
@@ -108,12 +116,12 @@ public:
       auto ns = member->encode_net_size();
       char* ptr = (char*)malloc(ns);
       member->encode_net(ptr, ns);
-      auto n = write(stream, ptr, ns);
+      auto n = fwrite(ptr, 1, ns, stream);
       (void)n;
       free(ptr);
     } else {
       auto* ptr = member->encode();
-      auto n = write(stream, ptr, member->encode_size());
+      auto n = fwrite(ptr, 1, member->encode_size(), stream);
       (void)n;
       member->free_encode(ptr);
     }
@@ -208,7 +216,7 @@ class cbuf_istream {
   friend class cbuf_ostream;
   std::map<uint64_t, std::string> dictionary;
   std::map<uint64_t, std::string> metadictionary;
-  int stream = -1;
+  FILE* stream = nullptr;
   const unsigned char* memmap_ptr = nullptr;
   const unsigned char* start_ptr = nullptr;
   const unsigned char* ptr = nullptr;

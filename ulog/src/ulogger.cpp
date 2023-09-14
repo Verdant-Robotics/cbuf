@@ -1,17 +1,32 @@
 #include "ulogger.h"
 
 #include <memory.h>
-#include <pthread.h>
-#include <unistd.h>
 
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <streambuf>
 #include <unordered_map>
 
-#if defined(__linux__)
-#include <linux/limits.h>
+#if defined(_WIN32)
+#include <Windows.h>
+#else
+#include <time.h>
+#include <unistd.h>
+#endif
+
+#if defined(_WIN32)
+#include <Windows.h>
+#include <processthreadsapi.h>
+#else
+#include <pthread.h>
+#endif
+
+#if defined(_WIN32)
+#define PATH_MAX MAX_PATH
+#elif defined(__linux__)
+#include <linux/limits.h>  // For PATH_MAX on UNIX
 #endif
 
 static std::recursive_mutex g_file_mutex;
@@ -20,6 +35,16 @@ static bool initialized = false;
 static ULogger* g_ulogger = nullptr;
 
 namespace fs = std::filesystem;
+
+void portable_usleep(int microseconds) {
+#if defined(_WIN32)
+  int milliseconds = microseconds / 1000;
+  Sleep(milliseconds);
+  // Optional: busy-wait for remaining microseconds for higher precision
+#else
+  usleep(microseconds);
+#endif
+}
 
 int ULogger::getOrMakeTopicVariant(const uint64_t& message_hash, const uint64_t& topic_name_hash) {
   // get the vector for the give message hash
@@ -70,18 +95,32 @@ extern char* __progname;
 static void name_thread() {
   char thread_name[16] = {};
   snprintf(thread_name, sizeof(thread_name), "ulog_%s", __progname);
+
 #if defined(__APPLE__)
   pthread_setname_np(thread_name);
+#elif defined(_WIN32)
+  // Convert the C string to a wide string
+  wchar_t w_thread_name[16];
+  mbstowcs(w_thread_name, thread_name, sizeof(thread_name));
+
+  // Set the thread name
+  SetThreadDescription(GetCurrentThread(), w_thread_name);
 #else
   pthread_setname_np(pthread_self(), thread_name);
 #endif
 }
 
 double ULogger::time_now() {
+#if defined(_WIN32)
+  LARGE_INTEGER frequency, counter;
+  QueryPerformanceFrequency(&frequency);
+  QueryPerformanceCounter(&counter);
+  return double(counter.QuadPart) / double(frequency.QuadPart);
+#else
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  double now = double(ts.tv_sec) + double(ts.tv_nsec) / 1e9;
-  return now;
+  return double(ts.tv_sec) + double(ts.tv_nsec) / 1e9;
+#endif
 }
 
 void ULogger::reportError(const std::string& error) {
@@ -170,7 +209,7 @@ void ULogger::processPacket(void* data, int size, const char* metadata, const ch
   char* write_ptr = (char*)data;
   int error_count = 0;
   do {
-    int result = write(cos.stream, write_ptr, bytes_to_write);
+    auto result = fwrite(write_ptr, 1, bytes_to_write, cos.stream);
     if (result > 0) {
       bytes_to_write -= result;
       write_ptr += result;
@@ -271,7 +310,7 @@ void ULogger::setFileWriteCallback(std::function<void(const void*, size_t)> cb, 
   file_write_callback_ = cb;
   cos.setFileWriteCallback(write_callback, this);
   if (cos.is_open()) {
-    fsync(cos.stream);
+    fflush(cos.stream);
     file_path = cos.filename();
     offset = static_cast<size_t>(cos.file_offset());
   }
@@ -310,13 +349,13 @@ void ULogger::initialize() {
     name_thread();
     while (!this->quit_thread) {
       if (ringbuffer.size() == 0) {
-        usleep(1000);
+        portable_usleep(1000);
         continue;
       }
       auto r = ringbuffer.lastUnread();
 
       if (!r) {
-        usleep(1000);
+        portable_usleep(1000);
         continue;
       }
 
@@ -337,7 +376,7 @@ void ULogger::initialize() {
       auto r = ringbuffer.lastUnread();
 
       if (!r) {
-        usleep(1000);
+        portable_usleep(1000);
         continue;
       }
 

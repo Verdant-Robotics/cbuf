@@ -20,7 +20,7 @@ TextType CreateTextType(Allocator* p, const char* src) {
 
   // if we get here, we need to allocate one
   TextType text = (TextType)p->alloc(size);
-#ifdef WIN32
+#if defined(PLATFORM_WINDOWS)
   strncpy_s(text, size, src, size);
 #else
   strncpy(text, src, size);

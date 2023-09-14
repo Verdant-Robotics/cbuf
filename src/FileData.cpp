@@ -1,7 +1,7 @@
 #include "FileData.h"
 
-#ifdef WIN32
-#include <windows.h>
+#if defined(PLATFORM_WINDOWS)
+#include <Windows.h>
 #else
 #define strncpy_s strncpy
 #include <string.h>
@@ -26,7 +26,7 @@ FileData::~FileData() { close(); }
 
 bool FileData::open(const char* filename) {
   close();
-#ifdef WIN32
+#if defined(PLATFORM_WINDOWS)
   HANDLE hFile = CreateFileA(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
   if (hFile == INVALID_HANDLE_VALUE) return false;

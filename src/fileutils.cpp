@@ -1,15 +1,18 @@
+#include "fileutils.h"
+
 #include <string>
-#if defined(_WIN32)
-#include <windows.h>
+
+#include "mytypes.h"
+
+#if defined(PLATFORM_WINDOWS)
+#include <Windows.h>
 #else
 #include <limits.h>
 #include <stdlib.h>
 #endif
 
-#include "fileutils.h"
-
-std::string getCanonicalPath(const char *path) {
-#if defined(_WIN32)
+std::string getCanonicalPath(const char* path) {
+#if defined(PLATFORM_WINDOWS)
   char buffer[MAX_PATH];
   if (GetFullPathName(path, MAX_PATH, buffer, nullptr)) {
     return std::string(buffer);
@@ -17,7 +20,7 @@ std::string getCanonicalPath(const char *path) {
     return std::string();
   }
 #else
-  char *realPath = realpath(path, nullptr);
+  char* realPath = realpath(path, nullptr);
   if (realPath) {
     std::string canonicalPath(realPath);
     free(realPath);

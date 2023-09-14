@@ -1,8 +1,6 @@
 #ifndef RINGBUFFER_H
 #define RINGBUFFER_H
 
-#include <unistd.h>
-
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -12,6 +10,12 @@
 #include <optional>
 #include <thread>
 #include <unordered_map>
+
+#if defined(_WIN32)
+#include <Windows.h>
+#else
+#include <time.h>
+#endif
 
 template <int Size>
 class RingBuffer {
@@ -112,7 +116,11 @@ public:
   uint64_t alloc(int size, const char* metadata, const char* type_name, const uint64_t topic_name_hash = 0) {
     std::optional<Allocation> r;
     while (!(r = alloc_inner(size, metadata, type_name, topic_name_hash))) {
+#if defined(_WIN32)
+      Sleep(0);
+#else
       usleep(100);
+#endif
     }
     return (*r).id_;
   }

@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #include "TokenType.h"
 #include "ast.h"

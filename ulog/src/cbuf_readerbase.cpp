@@ -105,7 +105,7 @@ bool CBufReaderBase::openUlog(bool error_ok) {
     if (f.path().extension().string() == ".cb") {
       if (!source_filters_.empty()) {
         bool filter_match = false;
-        std::string filename = f.path().filename();
+        std::string filename = f.path().filename().string();
         for (auto& str : source_filters_) {
           // Find the source_filter in filename only.
           if (std::string::npos != filename.find(str, 0)) {

@@ -4,18 +4,30 @@
 #include <cbuf_preamble.h>
 #include <fcntl.h>
 #include <metadata.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
+
+#if defined(_WIN32)
+#include <Windows.h>
+#include <io.h>
+#else
+#include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
+#endif
 
 #include "ulogger.h"
 
 static double now() {
+#if defined(_WIN32)
+  LARGE_INTEGER frequency, counter;
+  QueryPerformanceFrequency(&frequency);
+  QueryPerformanceCounter(&counter);
+  return double(counter.QuadPart) / double(frequency.QuadPart);
+#else
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  double now = double(ts.tv_sec) + double(ts.tv_nsec) / 1e9;
-  return now;
+  return double(ts.tv_sec) + double(ts.tv_nsec) / 1e9;
+#endif
 }
 
 void serialize_metadata_cbuf_ostream(const char* msg_meta, uint64_t hash, const char* msg_name, void* ctx) {
@@ -31,11 +43,11 @@ void serialize_metadata_cbuf_cstream(const char* msg_meta, uint64_t hash, const 
 double cbuf_ostream::now() const { return ::now(); }
 
 ssize_t cbuf_ostream::file_offset() const {
-  if (stream < 0) return -1;
+  if (stream == nullptr) return -1;
 #if defined(__linux__)
   return lseek64(stream, 0, SEEK_CUR);
 #else
-  return lseek(stream, 0, SEEK_CUR);
+  return fseek(stream, 0, SEEK_CUR);
 #endif
 }
 
@@ -57,7 +69,7 @@ int cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const 
     pre_file_write_callback_(FileWriteType::METADATA);
   }
   do {
-    int result = write(stream, write_ptr, bytes_to_write);
+    auto result = fwrite(write_ptr, 1, bytes_to_write, stream);
     if (result > 0) {
       bytes_to_write -= result;
       write_ptr += result;
@@ -84,24 +96,23 @@ int cbuf_ostream::serialize_metadata(const char* msg_meta, uint64_t hash, const 
 }
 
 void cbuf_ostream::close() {
-  if (stream != -1) {
-    ::close(stream);
+  if (stream != nullptr) {
+    fclose(stream);
   }
   dictionary.clear();
-  stream = -1;
+  stream = nullptr;
 }
 
 bool cbuf_ostream::open_file(const char* fname) {
-  stream =
-      open(fname, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-  if (stream == -1) {
+  stream = fopen(fname, "wb");
+  if (stream == nullptr) {
     fprintf(stderr, "Could not open file %s for writing\n", fname);
     perror("Error opening file ");
     fname_.clear();
   } else {
     fname_ = fname;
   }
-  return stream != -1;
+  return stream != nullptr;
 }
 
 bool cbuf_ostream::open_socket(const char* ip, int port) {
@@ -207,9 +218,9 @@ bool cbuf_ostream::merge_packet(cbuf_istream* cis, const std::vector<std::string
       return true;
     }
   }
-  auto num = write(stream, cis->ptr, nsize);
+  auto num = fwrite(cis->ptr, 1, nsize, stream);
   if (num != nsize) {
-    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %ld\n", nsize, num);
+    fprintf(stderr, "Error writing packet, wanted to write %d bytes but wrote %zd\n", nsize, num);
     return false;
   }
   if (file_write_callback_) {
@@ -317,32 +328,69 @@ const char* cbuf_istream::get_or_search_string_for_hash(uint64_t hash) {
 
 void cbuf_istream::close() {
   if (memmap_ptr != nullptr) {
+#if defined(_WIN32)
+    UnmapViewOfFile(memmap_ptr);
+#else
     munmap((void*)memmap_ptr, filesize);
+#endif
+    memmap_ptr = nullptr;
   }
-  if (stream != -1) {
-    ::close(stream);
+  if (stream != nullptr) {
+    fclose(stream);
+    stream = nullptr;
   }
-  stream = -1;
 }
 
 bool cbuf_istream::open_file(const char* fname) {
   // copy file name
-  stream = open(fname, O_RDONLY);
-  if (stream == -1) {
+  stream = fopen(fname, "rb");
+  if (stream == nullptr) {
     perror("Error opening file ");
     return false;
   }
+
+#if defined(_WIN32)
+  HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(stream));
+  if (hFile == INVALID_HANDLE_VALUE) {
+    fclose(stream);
+    return false;
+  }
+
+  LARGE_INTEGER li;
+  if (!GetFileSizeEx(hFile, &li)) {
+    fclose(stream);
+    return false;
+  }
+
+  filesize = li.QuadPart;
+  HANDLE hMap = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+  if (hMap == NULL) {
+    fclose(stream);
+    return false;
+  }
+
+  memmap_ptr = (unsigned char*)MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0);
+  if (memmap_ptr == NULL) {
+    CloseHandle(hMap);
+    fclose(stream);
+    return false;
+  }
+#else
   struct stat st;
   stat(fname, &st);
   filesize = st.st_size;
+
   int flags = MAP_PRIVATE;
 #if defined(__linux__)
   flags |= MAP_POPULATE;
 #endif
-  memmap_ptr = (unsigned char*)mmap(nullptr, filesize, PROT_READ, flags, stream, 0);
+
+  memmap_ptr = (unsigned char*)mmap(nullptr, filesize, PROT_READ, flags, fileno(stream), 0);
   if (memmap_ptr == MAP_FAILED) {
+    fclose(stream);
     return false;
   }
+#endif
 
   rem_size = filesize;
   ptr = start_ptr = memmap_ptr;
