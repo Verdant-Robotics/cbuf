@@ -52,7 +52,7 @@ macro( build_cbuf )
 
         add_custom_command(
           OUTPUT ${outdir}/${name}.h
-          COMMAND mkdir -p ${outdir}
+          COMMAND ${CMAKE_COMMAND} -E make_directory ${outdir}
           COMMAND cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file} ${incs} -d ${outdir}/${name}.d -o ${outdir}/${name}.h
           DEPENDS cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file}
           DEPFILE ${outdir}/${name}.d
@@ -61,7 +61,7 @@ macro( build_cbuf )
 
         add_custom_command(
           OUTPUT ${outdir}/${name}_json.h
-          COMMAND mkdir -p ${outdir}
+          COMMAND ${CMAKE_COMMAND} -E make_directory ${outdir}
           COMMAND cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file} ${incs} -j ${outdir}/${name}_json.h
           DEPENDS cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file}
           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
