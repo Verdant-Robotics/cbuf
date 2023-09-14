@@ -8,7 +8,10 @@ build_cbuf(NAME meta_cbuf MSG_FILES cbufmsg/metadata.cbuf)
 add_library(cbuf_stream SHARED src/cbuf_stream.cpp)
 target_include_directories(cbuf_stream PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(cbuf_stream PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cbufmsg)
-target_link_libraries(cbuf_stream PUBLIC meta_cbuf cbuf_lib cbuf_parse_dynamic pthread)
+target_link_libraries(cbuf_stream PUBLIC meta_cbuf cbuf_lib cbuf_parse_dynamic)
+if(UNIX)
+  target_link_libraries(cbuf_stream PUBLIC pthread)
+endif()
 
 # uloglib is a library for handling ulogger, how we create logs, and cbufreader, the C++
 # Class using templates to have callbacks as we read messages
