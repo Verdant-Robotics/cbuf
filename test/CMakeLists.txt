@@ -26,7 +26,11 @@ target_compile_definitions(test_cbuf_parse PUBLIC -DSAMPLES_PATH="${CMAKE_CURREN
 target_link_libraries(test_cbuf_parse PRIVATE gtest cbuf_parse_dynamic cbuf_internal)
 add_unit_test(NAME test_cbuf_parse COMMAND test_cbuf_parse)
 
-add_executable(test_parsing test_parsing.cpp test_utils.cpp samples/image.h samples/inctype.h hjson_helper.cpp)
+set(TEST_PARSING_SRCS test_parsing.cpp test_utils.cpp samples/image.h samples/inctype.h)
+if (${ENABLE_HJSON})
+  list(APPEND TEST_PARSING_SRCS hjson_helper.cpp)
+endif()
+add_executable(test_parsing ${TEST_PARSING_SRCS})
 target_link_libraries(test_parsing test_cbuf_samples gtest cbuf_lib cbuf_parse_dynamic )
 target_include_directories(test_parsing PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/samples ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(test_parsing PUBLIC "-Wno-reserved-id-macro")

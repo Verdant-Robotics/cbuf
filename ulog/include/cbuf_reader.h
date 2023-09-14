@@ -1,7 +1,5 @@
 #pragma once
 
-#include <hjson.h>
-
 #include <filesystem>
 #include <functional>
 #include <optional>
@@ -12,9 +10,6 @@
 #include "cbuf_readerbase.h"
 
 namespace fs = std::filesystem;
-
-template <typename T>
-void loadFromJson(const Hjson::Value& json, T& obj);
 
 class CBufHandlerBase {
   std::string msg_name_;
@@ -267,7 +262,7 @@ public:
     auto msg_type = cis.get_string_for_hash(hash);
     if (msg_type == CBufMsg::TYPE_STRING) {
       if (allow_conversion) {
-        // the hash did not match but has the same name, try to do json conversion
+        // the hash did not match but has the same name, try to do conversion
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
@@ -286,7 +281,7 @@ public:
           }
         }
 
-        // Initialize the fields on the cbuf in order to ensure when json backwards compat
+        // Initialize the fields on the cbuf in order to ensure when backwards compat
         // does not fill in fields (that are not there) still have sane values
         msg->Init();
         auto fillret = parser->FastConversion(CBufMsg::TYPE_STRING, cis.get_current_ptr(),
@@ -320,10 +315,11 @@ class CBufBoxHandlerLambda : public CBufHandlerBase {
   bool warned_conversion = false;
 
 public:
-  CBufBoxHandlerLambda(void (*h)(CBufMsg*, std::string), bool allow_json = true, bool process_always = false)
+  CBufBoxHandlerLambda(void (*h)(CBufMsg*, std::string), bool allow_conversion = true,
+                       bool process_always = false)
       : CBufHandlerBase(CBufMsg::TYPE_STRING, process_always)
       , handler(h)
-      , allow_conversion(allow_json) {}
+      , allow_conversion(allow_conversion) {}
 
   CBufBoxHandlerLambda(std::function<void(CBufMsg*, std::string)> h, bool allow_conv = true,
                        bool process_always = false)
@@ -358,7 +354,7 @@ public:
     auto msg_type = cis.get_string_for_hash(hash);
     if (msg_type == CBufMsg::TYPE_STRING) {
       if (allow_conversion) {
-        // the hash did not match but has the same name, try to do json conversion
+        // the hash did not match but has the same name, try to do conversion
         if (parser == nullptr) {
           parser = new CBufParser();
           if (!parser->ParseMetadata(cis.get_meta_string_for_hash(hash), CBufMsg::TYPE_STRING)) {
@@ -424,43 +420,47 @@ public:
   }
 
   template <typename TApp, typename CBufMsg>
-  bool addHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
+  bool addHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_conversion = true,
                   bool process_always = false) {
     std::shared_ptr<CBufHandlerBase> ptr(
-        new CBufHandler<TApp, CBufMsg>(owner, h, allow_json, process_always));
+        new CBufHandler<TApp, CBufMsg>(owner, h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
   template <typename CBufMsg>
-  bool addHandler(CBufHandlerLambdaFn<CBufMsg> h, bool allow_json = true, bool process_always = false) {
-    std::shared_ptr<CBufHandlerBase> ptr(new CBufHandlerLambda<CBufMsg>(h, allow_json, process_always));
+  bool addHandler(CBufHandlerLambdaFn<CBufMsg> h, bool allow_conversion = true, bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(new CBufHandlerLambda<CBufMsg>(h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
   template <typename CBufMsg>
-  bool addHandlerFn(std::function<void(CBufMsg*)> h, bool allow_json = true, bool process_always = false) {
-    std::shared_ptr<CBufHandlerBase> ptr(new CBufHandlerLambda<CBufMsg>(h, allow_json, process_always));
+  bool addHandlerFn(std::function<void(CBufMsg*)> h, bool allow_conversion = true,
+                    bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(new CBufHandlerLambda<CBufMsg>(h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
   template <typename TApp, typename CBufMsg>
-  bool addHandler(TApp* owner, CBufBoxMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
+  bool addHandler(TApp* owner, CBufBoxMessageHandler<TApp, CBufMsg> h, bool allow_conversion = true,
                   bool process_always = false) {
     std::shared_ptr<CBufHandlerBase> ptr(
-        new CBufBoxHandler<TApp, CBufMsg>(owner, h, allow_json, process_always));
+        new CBufBoxHandler<TApp, CBufMsg>(owner, h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
   template <typename CBufMsg>
-  bool addHandler(CBufBoxHandlerLambdaFn<CBufMsg> h, bool allow_json = true, bool process_always = false) {
-    std::shared_ptr<CBufHandlerBase> ptr(new CBufBoxHandlerLambda<CBufMsg>(h, allow_json, process_always));
+  bool addHandler(CBufBoxHandlerLambdaFn<CBufMsg> h, bool allow_conversion = true,
+                  bool process_always = false) {
+    std::shared_ptr<CBufHandlerBase> ptr(
+        new CBufBoxHandlerLambda<CBufMsg>(h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
   template <typename CBufMsg>
-  bool addHandlerFn(std::function<void(CBufMsg*, std::string)> h, bool allow_json = true,
+  bool addHandlerFn(std::function<void(CBufMsg*, std::string)> h, bool allow_conversion = true,
                     bool process_always = false) {
-    std::shared_ptr<CBufHandlerBase> ptr(new CBufBoxHandlerLambda<CBufMsg>(h, allow_json, process_always));
+    std::shared_ptr<CBufHandlerBase> ptr(
+        new CBufBoxHandlerLambda<CBufMsg>(h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 
@@ -656,10 +656,10 @@ public:
   }
 
   template <typename TApp, typename CBufMsg>
-  bool addHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_json = true,
+  bool addHandler(TApp* owner, CBufMessageHandler<TApp, CBufMsg> h, bool allow_conversion = true,
                   bool process_always = false) {
     std::shared_ptr<CBufHandlerBase> ptr(
-        new CBufHandler<TApp, CBufMsg>(owner, h, allow_json, process_always));
+        new CBufHandler<TApp, CBufMsg>(owner, h, allow_conversion, process_always));
     return addHandler(CBufMsg::TYPE_STRING, ptr);
   }
 

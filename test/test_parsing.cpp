@@ -10,9 +10,10 @@
 
 // built from samples/image.cbuf
 #include "image.h"
-#include "image_json.h"
 
 #if defined(HJSON_PRESENT)
+
+#include "image_json.h"
 
 // Test FillHjson method.
 TEST(HJsonParsing, Simple) {
@@ -63,8 +64,6 @@ TEST(HJsonParsing, Complex) {
   */
 }
 
-#endif
-
 TEST(JStrParsing, Simple) {
   messages::image img1;
   set_data(img1, 43);
@@ -102,6 +101,8 @@ TEST(JStrParsing, Complex) {
   loadFromJson(val, th2);
   ASSERT_TRUE(compare(th1, th2));
 }
+
+#endif
 
 TEST(CParsing, Simple) {
   messages::image img1;

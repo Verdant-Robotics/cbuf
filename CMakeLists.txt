@@ -7,12 +7,13 @@ if (NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
 endif()
 
-include(FetchDependency)
-include(FetchContent)
-include(AddTest)
+option(ENABLE_HJSON "Enable HJSON support" ON)
+option(ENABLE_CBUF_TESTS "Enable Tests" ON)
 
-# Optional hjson package, if found it exposes more functionality on the CBufParser class
-fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
+if (${ENABLE_HJSON})
+  include(FetchDependency)
+  fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
@@ -120,7 +121,7 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND ${CMAKE_CXX_COMPILER_VERSION} V
   target_compile_options(cbuf_parse_dynamic PRIVATE -Wno-unused-but-set-variable)
 endif()
 
-if(TARGET hjson)
+if (${ENABLE_HJSON})
   target_compile_definitions(cbuf_parse PUBLIC HJSON_PRESENT)
   target_link_libraries(cbuf_parse PUBLIC hjson)
   target_compile_definitions(cbuf_parse_dynamic PUBLIC HJSON_PRESENT)
@@ -141,9 +142,8 @@ endif()
 add_library(cbuf_internal INTERFACE)
 target_include_directories(cbuf_internal INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-option(ENABLE_CBUF_TESTS "Enable Tests" ON)
-
 if(${ENABLE_CBUF_TESTS})
+  include(AddTest)
   enable_testing()
   add_subdirectory(test)
 endif()

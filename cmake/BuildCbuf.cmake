@@ -58,17 +58,18 @@ macro( build_cbuf )
           DEPFILE ${outdir}/${name}.d
           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         )
-
-        add_custom_command(
-          OUTPUT ${outdir}/${name}_json.h
-          COMMAND ${CMAKE_COMMAND} -E make_directory ${outdir}
-          COMMAND cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file} ${incs} -j ${outdir}/${name}_json.h
-          DEPENDS cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file}
-          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        )
-
         list(APPEND cbuf_header_gen "${CMAKE_CURRENT_BINARY_DIR}/${outdir}/${name}.h")
-        list(APPEND cbuf_header_gen "${CMAKE_CURRENT_BINARY_DIR}/${outdir}/${name}_json.h")
+
+        if(${ENABLE_HJSON})
+          add_custom_command(
+            OUTPUT ${outdir}/${name}_json.h
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${outdir}
+            COMMAND cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file} ${incs} -j ${outdir}/${name}_json.h
+            DEPENDS cbuf ${CMAKE_CURRENT_SOURCE_DIR}/${msg_file}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+          )
+          list(APPEND cbuf_header_gen "${CMAKE_CURRENT_BINARY_DIR}/${outdir}/${name}_json.h")
+        endif()
     endforeach()
 
     add_custom_target( generate_${cbuf_lib_name}_headers DEPENDS ${cbuf_header_gen} )
