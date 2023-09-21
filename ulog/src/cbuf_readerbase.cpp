@@ -118,6 +118,13 @@ bool CBufReaderBase::openUlog(bool error_ok) {
           continue;
         }
       }
+      
+      // Check the file is not empty
+      std::error_code ec;
+      if (fs::file_size(f, ec) == 0) {
+        continue;
+      }
+      
       // this is a cb file, open it
       StreamInfo* si = new StreamInfo;
       si->cis = new cbuf_istream();
