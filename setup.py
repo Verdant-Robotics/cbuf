@@ -1,7 +1,7 @@
 from pathlib import Path
 from skbuild import setup
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
