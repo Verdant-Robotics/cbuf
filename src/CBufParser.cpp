@@ -1059,7 +1059,7 @@ bool compute_compact(ast_struct* st, SymbolTable* symtable, Interp* interp) {
       compute_compact(inner_st, symtable, interp);
       if (inner_st->has_compact) {
         st->has_compact = true;
-        st->simple_computed = true;
+        st->compact_computed = true;
         return true;
       }
     }
