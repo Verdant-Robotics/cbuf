@@ -12,7 +12,7 @@ option(ENABLE_CBUF_TESTS "Enable Tests" ON)
 
 if (${ENABLE_HJSON})
   include(FetchDependency)
-  fetch_dependency(hjson "https://github.com/Verdant-Robotics/hjson.git" "main")
+  fetch_dependency(hjson "https://github.com/hjson/hjson-cpp.git" "main")
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
