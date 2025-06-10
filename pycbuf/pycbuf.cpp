@@ -796,7 +796,7 @@ static int pycbufmodule_clear(PyObject* mod) {
   PyCBuf_State* state = pycbufmodule_getstate(mod);
   if (!state || !state->initialized) return 0;
   Py_CLEAR(state->unsupported_operation);
-  printf("********** module pycbuf dealloc **********\n");
+  printf("********** module pycbuf dealloc ***********\n");
   return 0;
 }
 
