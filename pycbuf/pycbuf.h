@@ -36,7 +36,6 @@ struct PyCBuf_State {
   PyObject* unsupported_operation;
   std::unordered_map<uint64_t, PyTypeInfo>* info_map;
   std::vector<char*>* info_sources;
-  PoolAllocator* pool;
   PyTypeObject* PyCBufReader_Type = nullptr;
   PyTypeObject* PyCBufPreamble_Type = nullptr;
 };

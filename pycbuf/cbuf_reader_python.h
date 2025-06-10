@@ -43,4 +43,11 @@ public:
 
   // Call this function to point the reader to a chunk of memory for future getMessage calls
   bool openMemory(const char* filename, const char* data, size_t size);
+
+  // Set the scheme for a cbuf.
+  bool setCbufSchema(const char cbuf_name[], const char cbuf_schema[]);
+
+  // Parse a binary array and return a Python object; setCbufSchema must have been called already.
+  bool getCBufFromBinaryArray(const char cbuf_name[], const char binary_array[], size_t binary_array_size,
+                              PyObject* module, PyObject*& result);
 };

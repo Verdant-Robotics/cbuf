@@ -498,7 +498,7 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
     return nullptr;
   }
   //+1
-  PyMemberDef* members = (PyMemberDef*)state->pool->alloc(sizeof(PyMemberDef) * (st->elements.size() + 2));
+  PyMemberDef* members = (PyMemberDef*)malloc(sizeof(PyMemberDef) * (st->elements.size() + 2));
   for (int im = 0; im < st->elements.size(); im++) {
     members[im].name = st->elements[im]->name;
     members[im].doc = nullptr;
@@ -516,7 +516,7 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   memset(&members[st->elements.size() + 1], 0, sizeof(PyMemberDef));
   pyinfo.members = members;
 
-  PyType_Slot* slots = (PyType_Slot*)state->pool->alloc(sizeof(PyType_Slot) * 6);
+  PyType_Slot* slots = (PyType_Slot*)malloc(sizeof(PyType_Slot) * 6);
   slots[0].slot = Py_tp_dealloc;
   slots[0].pfunc = (void*)DynamicDealloc;  // Dealloc function!
   slots[1].slot = Py_tp_base;
@@ -530,9 +530,9 @@ PyTypeObject* CBufParserPy::GetPyTypeFromCBuf(uint64_t hash, ast_struct* st, PyO
   slots[5].slot = 0;
   slots[5].pfunc = nullptr;
 
-  PyType_Spec* spec = (PyType_Spec*)state->pool->alloc(sizeof(PyType_Spec));
+  PyType_Spec* spec = (PyType_Spec*)malloc(sizeof(PyType_Spec));
   int str_size = strlen(st->name) + 8 + 5;
-  char* type_name = (char*)state->pool->alloc(str_size);
+  char* type_name = (char*)malloc(str_size);
   snprintf(type_name, str_size, "pycbuf.%s_%" PRIX64, st->name, uint64_t((hash & 0x0FFFFULL)));
   spec->name = type_name;
   spec->itemsize = 0;

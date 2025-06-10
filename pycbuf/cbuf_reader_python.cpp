@@ -149,3 +149,26 @@ bool CBufReaderPython::openMemory(const char* filename, const char* data, size_t
   is_opened = true;
   return true;
 }
+
+bool CBufReaderPython::setCbufSchema(const char cbuf_name[], const char cbuf_schema[]) {
+  if (msg_map_.contains(cbuf_name)) {
+    delete msg_map_[cbuf_name].parser;
+  }
+  msg_map_[cbuf_name].parser = new CBufParserPy();
+  bool okay = msg_map_[cbuf_name].parser->ParseMetadata(cbuf_schema, cbuf_name);
+  return okay;
+}
+
+bool CBufReaderPython::getCBufFromBinaryArray(const char cbuf_name[], const char binary_array[],
+                                              size_t binary_array_size, PyObject* module, PyObject*& result) {
+  if (!msg_map_.contains(cbuf_name)) {
+    return false;
+  }
+  CBufParserPy* parser = msg_map_[cbuf_name].parser;
+  const cbuf_preamble* preamble = reinterpret_cast<const cbuf_preamble*>(binary_array);
+  uint64_t hash = preamble->hash;
+  int consumed_bytes =
+      parser->FillPyObject(hash, cbuf_name, reinterpret_cast<const unsigned char*>(binary_array),
+                           binary_array_size, "binarystream", module, result);
+  return consumed_bytes ? true : false;
+}

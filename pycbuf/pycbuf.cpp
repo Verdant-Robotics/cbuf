@@ -323,6 +323,43 @@ static PyObject* pycbuf_cbufreader_open_memory(PyObject* self, PyObject* args) {
   }
 }
 
+static PyObject* pycbuf_cbufreader_set_cbuf_schema(PyObject* self, PyObject* args) {
+  char* cbuf_name;
+  char* cbuf_schema;
+  if (PyArg_ParseTuple(args, "ss", &cbuf_name, &cbuf_schema)) {
+    // If all params are given
+    CBufReaderPython* reader = reinterpret_cast<cbufreader*>(self)->reader;
+    bool okay = reader->setCbufSchema(cbuf_name, cbuf_schema);
+    if (okay) {
+      Py_RETURN_TRUE;
+    } else {
+      Py_RETURN_FALSE;
+    }
+  } else {
+    // If any param is missing
+    PyErr_SetString(PyExc_TypeError, "Usage: set_cbuf_schema(cbuf_name, cbuf_schema)");
+    Py_RETURN_FALSE;
+  }
+}
+
+static PyObject* pycbuf_cbufreader_get_cbuf_from_array(PyObject* self, PyObject* args) {
+  char* cbuf_name;
+  char* binary_array;
+  Py_ssize_t binary_array_size;
+  if (PyArg_ParseTuple(args, "sy#", &cbuf_name, &binary_array, &binary_array_size)) {
+    // If all params are given
+    PyObject* module = pycbuf_getmodule();
+    PyObject* result = nullptr;
+    CBufReaderPython* reader = reinterpret_cast<cbufreader*>(self)->reader;
+    reader->getCBufFromBinaryArray(cbuf_name, binary_array, binary_array_size, module, result);
+    return result;
+  } else {
+    // If any param is missing
+    PyErr_SetString(PyExc_TypeError, "Usage: get_cbuf_from_array(cbuf_name, binary_array)");
+    return Py_None;
+  }
+}
+
 PyDoc_STRVAR(pycbuf_cbufreader_get_counts___doc__,
              "\n"
              "Count the number of messages in a ulog. This will use the previously set\n"
@@ -808,7 +845,6 @@ PyMODINIT_FUNC PyInit_pycbuf(void) {
   if (!state) goto fail;
   state->initialized = 0;
   state->unsupported_operation = NULL;
-  state->pool = new PoolAllocator();
   state->info_map = new std::unordered_map<uint64_t, PyTypeInfo>();
   state->info_sources = new std::vector<char*>();
 
